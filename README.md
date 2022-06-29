@@ -30,7 +30,7 @@ Venus' Executors are not exactly the same idea as the 'executor proposal' or the
 
 A pool executor, has one queue of work that needs to be processed. It gives no guarentees on when it will be processed, or in what order. You give it a number of threads to use and tasks will be picked up on a best effort basis. As soon as a working thread is done, and there is work in the queue, it is picked up and processed.
 
-A Pool Executor supports Parallelism, not to be confused with Concerrency. In Parallelism task are by definition independent and not access the same data. This is why it provides no 'thread safety' features what so ever.
+A Pool Executor supports Parallelism, not to be confused with Concerrency. In Parallelism tasks are by definition independent and do not access the same data. This is why it provides no 'thread safety' features what so ever.
 
 The goal of this executor is to utilize the multitude of cores in the CPU, you have tasks that need doing, let's get them done as soon as possible.
 
