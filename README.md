@@ -34,7 +34,7 @@ The Pool Executor is very good to paralelize work, scatter work, if you like.
 
 * Single thread Executor
 
-A single thread executor, has one queue of work that needs to be processed. It gives a hard first-come-first-serve guarentee. If soon as work is queued, tasks are picked up and processed sequentially.
+A single thread executor, has one queue of work that needs to be processed. It gives a hard first-come-first-serve guarentee. As soon as work is queued, tasks are picked up and processed sequentially.
 
 Single thread Executor allows you to schedule work that is all done sequenctially, this means that all work done by the executor is inherently thread safe without any *significant* contention on locks.
 
