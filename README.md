@@ -54,7 +54,7 @@ Instead, use this strategy:
 
 * first schedule a task on a Single thread Executor and either copy the data to work on or just do the work if its a small task.
 * at the end of that task, schedule the paralel work on a Pool Executor
-* at the end of the paralel work, schedule a task back on the Single thread Executor to synchronously process the result.
+* at the _end_ of the paralel work, schedule a task back on the Single thread Executor to synchronously process the result.
 
 ![image](https://user-images.githubusercontent.com/5933444/176538261-412266f9-ad0f-4fb8-8c6f-4ab8f86ae733.png)
 
