@@ -30,6 +30,10 @@ Venus' Executors are not exactly the same idea as the 'executor proposal' or the
 
 A pool executor, has one queue of work that needs to be processed. It gives no guarentees on when it will be processed, or in what order. You give it a number of threads to use and tasks will be picked up on a best effort basis. As soon as a working thread is done, and there is work in the queue, it is picked up and processed.
 
+A Pool Executor supports Parallelism, not to be confused with Concerrency. In Parallelism task are by definition independent and not access the same data. This is why it provides no 'thread safety' features what so ever.
+
+The goal of this executor is to utilize the multitude of cores in the CPU, you have tasks that need doing, let's get them done as soon as possible.
+
 The Pool Executor is very good to paralelize work, scatter work, if you like.
 
 * Single thread Executor
@@ -39,6 +43,8 @@ A single thread executor, has one queue of work that needs to be processed. It g
 Single thread Executor allows you to schedule work that is all done sequenctially, this means that all work done by the executor is inherently thread safe without any *significant* contention on locks.
 
 There is still a lock in the queueing mechanism, but instead of having locks that protect your data structure, likely multiple locks in different places that may have to lock/unlocked several times, there is now only _one_ lock that is only touched when work is queued.
+
+The Single thread Executor is used to synchronize work, gather tasks, so to say.
 
 
 
