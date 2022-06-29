@@ -46,12 +46,23 @@ There is still a lock in the queueing mechanism, but instead of having locks tha
 
 The Single thread Executor is used to synchronize work, gather tasks, so to say.
 
+## Effective use of Venus Executors
 
+Both types of executors are intended to work together. If you have paralel work and you need to access data that other tasks can also access you might be temped to add a synchronization primitive like a Mutex. However, if the task you queue on Pool Executor can block, you risk blocking other tasks and 'creating an idle core' while other work could be done.
 
+Instead, use this strategy:
 
+* first schedule a task on a Single thread Executor and either copy the data to work on or just do the work if its a small task.
+* at the end of that task, schedule the paralel work on a Pool Executor
+* at the end of the paralel work, schedule a task back on the Single thread Executor to synchronously process the result.
 
+![image](https://user-images.githubusercontent.com/5933444/176538261-412266f9-ad0f-4fb8-8c6f-4ab8f86ae733.png)
 
+Guidelines:
 
+* tasks on the Pool Executor should not take locks or do blocking I/O (nor should they need to)
+* its OK for tasks on the Pool Executor to take a long time
+* tasks on the Single thread Executor block all other tasks in its queue, so keep these tasks are short as possible.
 
 
 
