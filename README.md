@@ -65,5 +65,6 @@ Guidelines:
 * tasks on the Single thread Executor block all other tasks in its queue, so keep these tasks are short as possible.
 
 
-
+References:
+- https://arxiv.org/pdf/2309.04259
 
