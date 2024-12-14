@@ -1,5 +1,7 @@
 #pragma once
 
+#include "executor/synchronized_queue.hpp"
+
 #include <cassert>
 #include <chrono>
 #include <cstdint>
@@ -19,7 +21,7 @@ class scheduled_call
 {
 public:
     scheduled_call();
-    void Cancel();
+    void cancel();
 
 private:
     scheduled_call(venus::executor & executor, callid_t id);
@@ -78,3 +80,5 @@ private:
     bool m_end;
     std::thread m_thread;
 };
+
+} // namespace venus

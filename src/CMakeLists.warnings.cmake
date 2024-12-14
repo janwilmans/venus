@@ -11,6 +11,7 @@ endif()
 # -Wdouble-promotion # not sure when it is a problem or what to do instead?
 
 add_compile_options(
+  -Wno-c++17-attribute-extensions
   -Wall
   -Wextra
   -pedantic

@@ -27,11 +27,11 @@ AlignConsecutiveMacros:
     AcrossComments: false
     AlignCompound: false
     PadOperators: false
-AlignConsecutiveShortCaseStatements:
-    Enabled: false
-    AcrossEmptyLines: false
-    AcrossComments: false
-    AlignCaseColons: false
+#AlignConsecutiveShortCaseStatements:
+#    Enabled: false
+#    AcrossEmptyLines: false
+#    AcrossComments: false
+#    AlignCaseColons: false
 AlignEscapedNewlines: Right
 AlignOperands: Align
 AlignTrailingComments:
@@ -140,7 +140,7 @@ IntegerLiteralSeparator:
 JavaScriptQuotes: Leave
 JavaScriptWrapImports: true
 KeepEmptyLinesAtTheStartOfBlocks: false
-KeepEmptyLinesAtEOF: false
+#KeepEmptyLinesAtEOF: false
 LambdaBodyIndentation: Signature
 LineEnding: DeriveLF
 MacroBlockBegin: "^BEGIN_MSG_MAP|^BEGIN_UPDATE_UI_MAP|^BEGIN_COM_MAP"
@@ -169,7 +169,7 @@ QualifierAlignment: Left
 ReferenceAlignment: Pointer
 ReflowComments: true
 RemoveBracesLLVM: false
-RemoveParentheses: Leave
+#RemoveParentheses: Leave
 RemoveSemicolon: false
 RequiresClausePosition: WithPreceding
 RequiresExpressionIndentation: OuterScope
@@ -187,7 +187,7 @@ SpaceBeforeCaseColon: false
 SpaceBeforeCpp11BracedList: false
 SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
-SpaceBeforeJsonColon: false
+#SpaceBeforeJsonColon: false
 SpaceBeforeParens: ControlStatements
 SpaceBeforeParensOptions:
     AfterControlStatements: true
@@ -208,12 +208,12 @@ SpacesInContainerLiterals: false
 SpacesInLineCommentPrefix:
     Minimum: 1
     Maximum: -1
-SpacesInParens: Never
-SpacesInParensOptions:
-    InCStyleCasts: false
-    InConditionalStatements: false
-    InEmptyParentheses: false
-    Other: false
+#SpacesInParens: Never
+#SpacesInParensOptions:
+#    InCStyleCasts: false
+#    InConditionalStatements: false
+#    InEmptyParentheses: false
+#    Other: false
 SpacesInSquareBrackets: false
 Standard: Auto
 StatementAttributeLikeMacros:
@@ -223,7 +223,7 @@ StatementMacros:
     - QT_REQUIRE_VERSION
 TabWidth: 4
 UseTab: Never
-VerilogBreakBetweenInstancePorts: true
+#VerilogBreakBetweenInstancePorts: true
 WhitespaceSensitiveMacros:
     - BOOST_PP_STRINGIZE
     - CF_SWIFT_NAME
