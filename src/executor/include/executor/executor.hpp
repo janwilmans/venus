@@ -68,10 +68,10 @@ protected:
 
     void add(std::function<void()> function);
 
-    bool wait_for_not_empty(const std::chrono::nanoseconds time) const
-    {
-        return m_queue.wait_for_not_empty(time);
-    }
+    // bool wait_for_not_empty(const std::chrono::nanoseconds time) const
+    // {
+    //     return m_queue.wait_for_not_empty(time);
+    // }
 
 private:
     synchronized_queue<std::function<void()>> m_queue;

@@ -11,10 +11,8 @@
 
 #include "executor/synchronized_queue.hpp"
 
-TEST(test1, test1)
+TEST(synchronized_queue, construction_destruction)
 {
-    ASSERT_TRUE(true);
-
     venus::synchronized_queue<std::vector<std::string>> m_synch_vector;
 }
 
