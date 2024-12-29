@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/BlankSpruce/gersemi/master/gersemi/configuration.schema.json
+#
+# To actually use gersemi, you need to install it in the host system
+# (hamilton). The Debian Buster based docker images do not have all
+# the Python dependencies (in our Python 3.8 package) to run it.
+#
+# $ pip3 install gersemi
+#
+# After that, add ~/.local/bin to your PATH:
+#
+# $ PATH=$PATH:~/.local/bin
+#
+# Run gersemi with the -i flag to modify in-place.
+
+cache: true
+color: false
+definitions:
+    - CMakeLists.warnings.cmake
+indent: 2
+line_length: 120
+list_expansion: favour-expansion
+quiet: false
+unsafe: false
+warn_about_unknown_commands: true
+workers: max
