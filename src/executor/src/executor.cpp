@@ -3,6 +3,7 @@
  */
 
 #include "executor/executor.hpp"
+#include "executor/scheduled_calls.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -11,154 +12,143 @@
 
 namespace venus {
 
-// scheduled_call::scheduled_call() :
-//     pExec(nullptr),
-//     id(0)
-// {
-// }
+[[nodiscard]] scheduled_call::id_t make_callid()
+{
+    static std::atomic<scheduled_call::id_t> id(0);
+    return ++id;
+}
 
-// scheduled_call::scheduled_call(ExecutorBase & exec, unsigned id) :
-//     pExec(&exec),
-//     id(id)
-// {
-// }
+scheduled_call::scheduled_call(venus::executor & executor, scheduled_call::id_t id) :
+    m_executor(&executor),
+    m_id(id)
+{
+}
 
-// void scheduled_call::Cancel()
-// {
-//     if (pExec == nullptr)
-//     {
-//         return;
-//     }
+void scheduled_call::cancel()
+{
+    if (m_executor == nullptr)
+    {
+        return;
+    }
 
-//     pExec->Cancel(*this);
-//     pExec = nullptr;
-// }
+    m_executor->cancel(m_id);
+    m_executor = nullptr;
+}
 
-// unsigned scheduled_call::GetId() const
-// {
-//     return id;
-// }
+scheduled_call::id_t scheduled_call::id() const
+{
+    return m_id;
+}
 
-// bool executor::is_executor_thread() const
-// {
-//     return std::this_thread::get_id() == m_threadId;
-// }
+// executor
 
-// void executor::run_one()
-// {
-//     set_executor_thread();
-//     m_q.Pop()();
-// }
+executor::executor() :
+    m_thread([this] { run(); })
+{
+    synchronize();
+}
 
-// void executor::set_executor_thread()
-// {
-//     m_threadId = std::this_thread::get_id();
-// }
+executor::~executor()
+{
+    add([this] { m_end = true; });
+    m_thread.join();
+}
 
-// void executor::set_executor_thread(std::thread::id id)
-// {
-//     m_threadId = id;
-// }
+bool executor::is_executor_thread() const
+{
+    return std::this_thread::get_id() == m_threadId;
+}
 
-// void executor::Add(std::function<void()> fn)
-// {
-//     m_q.Push(fn);
-// }
+void executor::add(std::function<void()> fn)
+{
+    m_queue.push(fn);
+}
 
-// void executor::Synchronize()
-// {
-//     assert(!is_executor_thread() && "Calling Synchronize() inside Call() will cause a deadlock");
-//     SynchronizeInternally();
-// }
+void executor::synchronize()
+{
+    assert(!is_executor_thread() && "Calling synchronize() inside call() will cause a deadlock");
+    std::promise<bool> sync;
+    add([&sync]() { sync.set_value(true); });
+    sync.get_future().get();
+}
 
-// void executor::SynchronizeInternally()
-// {
-//     std::promise<bool> sync;
-//     Add([&sync]() { sync.set_value(true); });
-//     sync.get_future().get();
-// }
 
-// scheduled_call TimedExecutor::CallAt(const TimePoint & at, std::function<void()> fn)
-// {
-//     unsigned id = GetCallId();
-//     Add([this, id, at, fn]() {
-//         m_scheduledCalls.Insert(TimedExecutor::CallData(id, at, fn));
-//     });
-//     return MakeScheduledCall(id);
-// }
+scheduled_call executor::call_at(const time_point_t & at, function_t function)
+{
+    return call_every(at, {}, function);
+}
 
-// scheduled_call TimedExecutor::CallAfter(const Duration & interval, std::function<void()> fn)
-// {
-//     return CallAt(std::chrono::steady_clock::now() + interval, fn);
-// }
+scheduled_call executor::call_after(const duration_t & delay, function_t function)
+{
+    return call_at(std::chrono::steady_clock::now() + delay, function);
+}
 
-// scheduled_call TimedExecutor::CallEvery(const Duration & interval, std::function<void()> fn)
-// {
-//     assert(interval > Duration::zero());
+scheduled_call executor::call_every(const duration_t & repeat_interval, function_t function)
+{
+    return call_every(std::chrono::steady_clock::now(), repeat_interval, function);
+}
 
-//     unsigned id = GetCallId();
-//     Add([this, id, interval, fn]() {
-//         m_scheduledCalls.Insert(TimedExecutor::CallData(id, std::chrono::steady_clock::now() + interval, interval, fn));
-//     });
-//     return MakeScheduledCall(id);
-// }
+scheduled_call executor::call_every(const time_point_t & at, const duration_t & repeat_interval, function_t function)
+{
+    auto id = make_callid();
+    add([this, id, at, repeat_interval, function]() {
+        m_scheduled_calls.insert(venus::call_t(id, at, repeat_interval, function));
+    });
+    return scheduled_call(*this, id);
+}
 
-// void TimedExecutor::Cancel(const scheduled_call & call)
-// {
-//     unsigned id = GetId(call);
-//     if (is_executor_thread())
-//     {
-//         m_scheduledCalls.Remove(id);
-//     }
-//     else
-//     {
-//         Call([this, id]() { m_scheduledCalls.Remove(id); });
-//     }
-// }
+void executor::cancel(const call_t::id_t id)
+{
+    if (is_executor_thread())
+    {
+        m_scheduled_calls.remove(id);
+    }
+    else
+    {
+        call([this, id]() { m_scheduled_calls.remove(id); });
+    }
+}
 
-// void TimedExecutor::RunOne()
-// {
-//     set_executor_thread();
-//     if (!m_scheduledCalls.IsEmpty() && !wait_for_not_empty(m_scheduledCalls.NextDeadline()))
-//     {
-//         m_scheduledCalls.Pop().fn();
-//     }
-//     else
-//     {
-//         return executor::RunOne();
-//     }
-// }
 
-// ActiveExecutor::ActiveExecutor() :
-//     m_end(false),
-//     m_thread([this] { Run(); })
-// {
-//     set_executor_thread(m_thread.get_id());
-// }
+void executor::run()
+{
+    m_threadId = std::this_thread::get_id();
+    while (!m_end)
+    {
+        try
+        {
+            run_one();
+        }
+        catch (std::exception & e)
+        {
+            // cdbg << "executor: exception ignored: " << e.what() << "\n";
+        }
+        catch (...)
+        {
+            // cdbg << "executor: exception ignored\n";
+        }
+    }
+}
 
-// ActiveExecutor::~ActiveExecutor()
-// {
-//     Add([this] { m_end = true; });
-//     m_thread.join();
-// }
+void executor::run_one()
+{
+    // if there are scheduled_calls and the deadline of first call has expired, execute it.
+    if (!m_scheduled_calls.empty() && !wait_for_not_empty(m_scheduled_calls.next_deadline()))
+    {
+        m_scheduled_calls.pop_front().m_function();
+    }
+    else
+    {
+        // either there are no scheduled_calls and pop() will block until there is work to do
+        // or there is
+        return m_queue.pop()();
+    }
+}
 
-// void ActiveExecutor::Run()
-// {
-//     while (!m_end)
-//     {
-//         try
-//         {
-//             RunOne();
-//         }
-//         catch (std::exception & e)
-//         {
-//             cdbg << "executor: exception ignored: " << e.what() << "\n";
-//         }
-//         catch (...)
-//         {
-//             cdbg << "executor: exception ignored\n";
-//         }
-//     }
-// }
+bool executor::wait_for_not_empty(const time_point_t timepoint) const
+{
+    return m_queue.wait_for_not_empty(timepoint);
+}
+
 
 } // namespace venus

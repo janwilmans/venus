@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Jan Wilmans
+ * Copyright (c) 2025 Jan Wilmans
  */
 
 #include <gtest/gtest.h>

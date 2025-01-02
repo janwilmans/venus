@@ -1,6 +1,11 @@
+/*
+ * Copyright (c) 2025 Jan Wilmans
+ */
+
 #pragma once
 
 #include "executor/guarded.hpp"
+#include "executor/scheduled_calls.hpp"
 
 #include <chrono>
 #include <condition_variable>
@@ -84,9 +89,21 @@ public:
         m_queue.wait_for([this](const TQueue & queue) { return !queue.empty(); });
     }
 
-    [[nodiscard]] bool wait_for_not_empty(std::chrono::nanoseconds duration) const
+
+    /**
+     * @brief Waits for the queue to become non-empty or a timepoint is reached
+     *
+     * This function blocks the calling thread until either the queue is no longer empty
+     * or the specified timepoint is reached, whichever occurs first.
+     *
+     * @param timeout The timepoint to wait until for the queue to become non-empty.
+     *
+     * @return `true` if the queue became non-empty before the timepoint was reached;
+     *         `false` otherwise.
+     */
+    [[nodiscard]] bool wait_for_not_empty(const time_point_t timepoint) const
     {
-        return m_queue.wait_for([this](const TQueue & queue) { return !queue.empty(); }, duration);
+        return m_queue.wait_for([this](const TQueue & queue) { return !queue.empty(); }, timepoint);
     }
 
     void push(T t)

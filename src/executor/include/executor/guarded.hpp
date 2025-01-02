@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2025 Jan Wilmans
+ */
+
 #pragma once
 
 #include <chrono>
@@ -53,14 +57,14 @@ public:
     }
 
     /**
-     * @brief wait for the @p condition to be true or a timeout occurs
+     * @brief wait for the @p condition to be true or a timepoint is reached
      * @return the latest result of condition() before returning to the caller.
      */
-    template <typename Condition, typename Duration>
-    auto wait_for(Condition && condition, Duration duration)
+    template <typename Condition, typename Timepoint>
+    auto wait_for(Condition && condition, Timepoint timepoint)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        return m_condition.wait(lock, duration, [&]() { return condition(m_data); });
+        return m_condition.wait_until(lock, timepoint, [&]() { return condition(m_data); });
     }
 
     /**

@@ -1,5 +1,6 @@
 add_library(venus_executor_library
   src/executor.cpp
+  src/scheduled_calls.cpp
   include/executor/synchronized_queue.hpp
 )
 
