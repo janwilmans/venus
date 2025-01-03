@@ -6,7 +6,9 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <fmt/core.h>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -135,7 +137,7 @@ TEST(chrono, rtc_behaviour_duration_system_clock_timepoint)
 
     if (result == Result::Timeout)
     {
-        log_note("Normal", "Changing the RTC caused a timeout!\n");
+        log_note("Normal", "Changing the RTC caused a timeout as expected.\n");
     }
     else
     {

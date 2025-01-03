@@ -13,31 +13,35 @@ The main tools we'll be using are:
 
 -   executors (more details below)
 -   queues
--   mutexes
--   threads
+-   std::mutex
+-   std::threads
+-   std::condition_variable
 
 If this sounds too trivial, that is good, because that's what I'm aiming for.
 
-## Queues, Mutexes and Threads
+## Requirements
 
-These are available from C++14 and we will use them as such.
+-   Queues, Mutexes and Threads
+-   These are available from C++14 and we will use them as such.
+-   Tested with GCC 4.9.2 and GCC 14.2.0
+-   a modern cmake version is required (3.18), as low as 3.11 might work as long as FetchContent is supported, but I did not try this. I tested with cmake version [3.31.20250103-gb779fcf](https://github.com/Kitware/CMake/tree/b779fcf6a048ffe8a87eb07f6abd69fd9cedd13f) on GCC 4.9.2 and that compiled out of the box.
 
 ## Executors
 
 Executors are not part of the C++ standard library, so we will implement them.
 Venus' Executors are not exactly the same idea as the 'executor proposal' or the 'paralel STL', I still used the name because I think its fits well. There are two kinds of executors available here:
 
--   Pool executor
+-   Pool executor (venus::pool_executor)
 
 A pool executor, has one queue of work that needs to be processed. It gives no guarentees on when it will be processed, or in what order. You give it a number of threads to use and tasks will be picked up on a best effort basis. As soon as a working thread is done, and there is work in the queue, it is picked up and processed.
 
-A Pool executor supports Parallelism, not to be confused with Concerrency. In Parallelism tasks are by definition independent and do not access the same data. This is why it provides no 'thread safety' features what so ever.
+A Pool executor supports Parallelism, not to be confused with Concerrency. In Parallelism, tasks are by definition independent and do not access the same data. This is why it provides no 'thread safety' features what so ever.
 
 The goal of this executor is to utilize the multitude of cores in the CPU, you have tasks that need doing, let's get them done as soon as possible.
 
 The Pool executor is very good to paralelize work, scatter work, if you like.
 
--   Single thread executor
+-   Single thread executor (venus::executor)
 
 A single thread executor, has one queue of work that needs to be processed. It gives a hard first-come-first-serve guarentee. As soon as work is queued, tasks are picked up and processed sequentially.
 

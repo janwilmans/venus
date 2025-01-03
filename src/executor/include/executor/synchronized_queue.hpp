@@ -70,7 +70,7 @@ public:
 
     [[nodiscard]] size_t size() const
     {
-        return m_queue.with_lock([this](const TQueue & queue) {
+        return m_queue.with_lock([](const TQueue & queue) {
             return queue.size();
         });
     }
@@ -123,7 +123,7 @@ public:
      */
     [[nodiscard]] bool wait_for_not_empty(const time_point_t timepoint) const
     {
-        return m_queue.wait_for([this](const TQueue & queue) { return !queue.empty(); }, timepoint);
+        return m_queue.wait_for([](const TQueue & queue) { return !queue.empty(); }, timepoint);
     }
 
     void push(T t)
@@ -136,7 +136,7 @@ public:
     T pop()
     {
         return m_queue.with_lock_and_notify_r(
-            [this](const TQueue & queue) { return queue.size() > 0; },
+            [](const TQueue & queue) { return queue.size() > 0; },
             [&](TQueue & queue) { auto result = queue.front(); queue.pop(); return result; });
     }
 };

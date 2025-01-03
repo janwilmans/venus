@@ -11,23 +11,20 @@ endif()
 # -Wdouble-promotion # not sure when it is a problem or what to do instead?
 
 add_compile_options(
-  -Wno-c++17-attribute-extensions
   -Wall
   -Wextra
   -pedantic
   -Wcast-align
   -Wformat=2
-  -Wmisleading-indentation
   -Wmissing-include-dirs
-  -Wnull-dereference
   -Wswitch-enum
   -Wunused
   -Wunused-variable
   -Wunused-parameter
   -Wvla
-  -Wshadow
   -Wsign-conversion
   -Wconversion
+  -Wno-attributes
   $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
 )
 
@@ -50,52 +47,43 @@ endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     message("Adding extra GCC only compilation options")
     add_compile_options(
-      -Wduplicated-cond
       -Wframe-larger-than=1000000
       -Wlogical-op
-      -Wduplicated-branches
-      -Wformat-overflow=2
-      # Warnings that are not allowed in C compilation units
-      $<$<COMPILE_LANGUAGE:CXX>:-Wvolatile>
-      $<$<COMPILE_LANGUAGE:CXX>:-Werror=suggest-override>
     )
 
-    # We know that system headers (and fmt) produce bogus warnings with array-bounds;
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9)
+      message("Adding GCC > 9 warnings")
+      add_compile_options(
+        -Wnull-dereference
+        -Wmisleading-indentation
+        -Wduplicated-branches
+        -Wduplicated-cond
+        -Wformat-overflow=2
+        -Wshadow
+
+        # Warnings that are not allowed in C compilation units
+        $<$<COMPILE_LANGUAGE:CXX>:-Werror=suggest-override>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wvolatile>
+      )
+    endif()
+
+    # Some system headers (and fmt) produce warnings we cannot solve
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13)
-      message("Adding GCC-13 exceptions")
+      message("Adding modern GCC exceptions")
       add_compile_options(
         -Wno-array-bounds
         -Wno-stringop-overflow
+        -Wno-dangling-reference
+        -Wno-c++17-attribute-extensions
       )
     endif()
+
+
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  message("Adding Clang suppressions")
-  add_compile_options(
-      -Wcomma
-     # warnings that are on, but not completely solved
-      -Wno-error=cast-align
-      -Wno-error=deprecated-enum-enum-conversion
-      -Wno-error=deprecated-declarations
-      -Wno-error=gnu-zero-variadic-macro-arguments
-      -Wno-error=format-nonliteral
-      # this very noisy and these warnings are coming from third-party headers
-      -Wno-gnu-zero-variadic-macro-arguments
-      -Wno-gnu-line-marker
-  )
-
-  add_link_options(-no-pie)
-endif()
-
-if (SQRREPORT)
-  message("Adding extra SQR warnings")
-  add_compile_options(
-      -Wno-error
-      -Weverything
-      -Wno-c++98-compat
-      -Wno-c++98-compat-pedantic
-      -Wno-documentation
-      -Wno-shadow-field-in-constructor
-  )
+    add_compile_options(
+      -Wshadow
+      -Wno-c++17-attribute-extensions
+      )
 endif()

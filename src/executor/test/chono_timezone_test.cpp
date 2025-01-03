@@ -6,7 +6,9 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <fmt/core.h>
+#include <mutex>
 #include <thread>
 #include <vector>
 
