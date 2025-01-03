@@ -33,7 +33,18 @@ public:
     void insert(call_t && call);
     void remove(call_t::id_t);
     [[nodiscard]] time_point_t next_deadline() const;
-    call_t pop_front();
+
+    /**
+     * @brief Pops the first task from `m_calls` and potentially reschedules it.
+     *
+     * This function gets the first task from `m_calls`, and determines
+     * whether it should be rescheduled based on its `m_repeat_interval` property.
+     * If the task has a repeat duration, it will be reinserted into the list at an
+     * appropriate position based on its next execution time.
+     *
+     * @return the first task taken from `m_calls`
+     */
+    call_t pop_and_reschedule();
 
 private:
     std::vector<call_t> m_calls;

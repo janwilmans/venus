@@ -11,21 +11,21 @@
 
 namespace venus {
 
-template <typename T>
-class guarded
-{
-private:
-    T m_data;
-    std::mutex m_mutex;
+// template <typename T>
+// class guarded
+// {
+// private:
+//     T m_data;
+//     std::mutex m_mutex;
 
-public:
-    template <typename Func>
-    auto with_lock(Func && func)
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return func(m_data);
-    }
-};
+// public:
+//     template <typename Func>
+//     auto with_lock(Func && func)
+//     {
+//         std::lock_guard<std::mutex> lock(m_mutex);
+//         return func(m_data);
+//     }
+// };
 
 template <typename T>
 class guarded_notify
@@ -37,7 +37,13 @@ private:
 
 public:
     /**
-     * @brief executes @p action after waiting for @p condition, where @p action returns a result
+     * @brief Executes the provided @p action while holding the lock.
+     *
+     * This function acquires a lock on the internal mutex, ensuring thread safety,
+     * and then invokes the specified @p action
+     *
+     * @param action The callable object (e.g., a lambda or function) to be executed.
+     * @return The result of invoking @p action
      */
     template <typename Action>
     auto with_lock(Action && action)
@@ -47,7 +53,12 @@ public:
     }
 
     /**
-     * @brief wait for the @p condition to be true
+     * @brief Waits for the @p condition to be true
+     *
+     * This function acquires a lock on the internal mutex and waits for the condition
+     * variable to be notified.
+     *
+     * @note This method has no timeout so can possibly block forever
      */
     template <typename Condition>
     void wait_for(Condition && condition)
@@ -57,8 +68,13 @@ public:
     }
 
     /**
-     * @brief wait for the @p condition to be true or a timepoint is reached
-     * @return the latest result of condition() before returning to the caller.
+     * @brief Waits for the @p condition to be true or a timepoint is reached
+     *
+     * This function locks the internal mutex and waits for the condition variable to be notified.
+     *
+     * @return The most recent result of @p condition before returning to the caller.
+     *
+     * @note The @p condition may be evaluated multiple times due to spurious wakeups.
      */
     template <typename Condition, typename Timepoint>
     auto wait_for(Condition && condition, Timepoint timepoint)

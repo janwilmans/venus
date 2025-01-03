@@ -72,7 +72,6 @@ void executor::synchronize()
     sync.get_future().get();
 }
 
-
 scheduled_call executor::call_at(const time_point_t & at, function_t function)
 {
     return call_every(at, {}, function);
@@ -109,7 +108,6 @@ void executor::cancel(const call_t::id_t id)
     }
 }
 
-
 void executor::run()
 {
     m_threadId = std::this_thread::get_id();
@@ -132,23 +130,22 @@ void executor::run()
 
 void executor::run_one()
 {
-    // if there are scheduled_calls and the deadline of first call has expired, execute it.
-    if (!m_scheduled_calls.empty() && !wait_for_not_empty(m_scheduled_calls.next_deadline()))
+    // if there are scheduled_calls and the deadline of first call expires, execute it.
+    if (!m_scheduled_calls.empty() && !wait_for_work(m_scheduled_calls.next_deadline()))
     {
-        m_scheduled_calls.pop_front().m_function();
+        m_scheduled_calls.pop_and_reschedule().m_function();
     }
     else
     {
         // either there are no scheduled_calls and pop() will block until there is work to do
-        // or there is
+        // or `wait_for_work` returned `true` and there is work to do.
         return m_queue.pop()();
     }
 }
 
-bool executor::wait_for_not_empty(const time_point_t timepoint) const
+bool executor::wait_for_work(const time_point_t timepoint) const
 {
     return m_queue.wait_for_not_empty(timepoint);
 }
-
 
 } // namespace venus

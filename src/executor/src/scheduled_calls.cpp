@@ -53,7 +53,7 @@ time_point_t scheduled_calls::next_deadline() const
     return m_calls.back().m_at;
 }
 
-call_t scheduled_calls::pop_front()
+call_t scheduled_calls::pop_and_reschedule()
 {
     call_t call(std::move(m_calls.back()));
     m_calls.pop_back();

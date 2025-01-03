@@ -12,6 +12,26 @@
 #include <mutex>
 #include <queue>
 
+/*
+ * bool wait_until( std::unique_lock<std::mutex>& lock, const std::chrono::time_point<Clock, Duration>& abs_time, Predicate pred );
+ *
+ * Implementation note:
+ * https://en.cppreference.com/w/cpp/thread/condition_variable/wait_until
+ *
+ * The standard recommends that the clock tied to abs_time be used to measure time;
+ * that clock is NOT required to be a monotonic clock. There are no guarantees regarding the behavior of this
+ * function if the clock is adjusted discontinuously, but the existing implementations convert
+ * abs_time from Clock to std::chrono::system_clock and delegate to POSIX pthread_cond_timedwait
+ * so that the wait honors adjustments to the system clock, but not to the user-provided Clock.
+ *
+ * In any case, the function also may wait for longer than until after abs_time has been reached
+ * due to scheduling or resource contention delays.
+ *
+ * NOTE: If a task is scheduled for a specific future time, such as 3 AM, and the clock is adjusted (e.g., at 1 AM, the clock is set to 2 AM),
+ * the task will still execute at 3 AM based on the adjusted clock, even though this occurs an hour earlier than originally anticipated.
+ * TODO: verify this!!!
+ */
+
 namespace venus {
 
 template <typename T>

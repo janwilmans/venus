@@ -25,13 +25,16 @@ if (NOT BUILD_IN_TREE)
     FetchContent_Declare(googletest
       GIT_REPOSITORY https://github.com/google/googletest.git
       GIT_TAG v1.15.2
-    )    
+    )
     FetchContent_MakeAvailable(googletest)
 
 endif()
 
 find_package(Threads REQUIRED)
 include(CMakeLists.warnings.cmake)
+
+# workaround for {fmt} on gcc14
+add_compile_options(-Wno-dangling-reference)
 
 #add_compile_options(-fsanitize=address)
 #add_link_options(-fsanitize=address)

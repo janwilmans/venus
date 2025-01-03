@@ -99,7 +99,7 @@ public:
     scheduled_call call_every(const time_point_t & at, const duration_t & repeat_interval, function_t function);
 
 private:
-    bool wait_for_not_empty(const time_point_t timepoint) const;
+    bool wait_for_work(const time_point_t timepoint) const;
 
     /**
      * @brief Executes a single task from the executor's queue.
