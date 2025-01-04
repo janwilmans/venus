@@ -2,64 +2,19 @@
  * Copyright (c) 2024 Jan Wilmans
  */
 
+#include "gmock/gmock.h"
+#include <future>
 #include <gtest/gtest.h>
 
 #include <fmt/core.h>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "executor/executor.hpp"
-#include "executor/synchronized_queue.hpp"
 
 using namespace std::chrono_literals;
-
-TEST(synchronized_queue, construction_destruction)
-{
-    venus::synchronized_queue<std::vector<std::string>> m_synch_vector;
-}
-
-TEST(synchronized_queue, basic_use)
-{
-    venus::synchronized_queue<std::string> synchronous_string_q;
-    ASSERT_EQ(synchronous_string_q.maximum_size(), 0);
-    ASSERT_TRUE(synchronous_string_q.empty());
-    ASSERT_FALSE(synchronous_string_q.full());
-    synchronous_string_q.push("test");
-    ASSERT_FALSE(synchronous_string_q.full());
-    ASSERT_FALSE(synchronous_string_q.empty());
-    ASSERT_EQ(synchronous_string_q.maximum_size(), 0);
-}
-
-TEST(synchronized_queue, maximum_size)
-{
-    venus::synchronized_queue<std::string> synchronous_string_q(1);
-    ASSERT_EQ(synchronous_string_q.maximum_size(), 1);
-    ASSERT_TRUE(synchronous_string_q.empty());
-    ASSERT_FALSE(synchronous_string_q.full());
-    synchronous_string_q.push("test");
-    ASSERT_TRUE(synchronous_string_q.full());
-    ASSERT_FALSE(synchronous_string_q.empty());
-    ASSERT_EQ(synchronous_string_q.maximum_size(), 1);
-}
-
-TEST(synchronized_queue, queue_order)
-{
-    venus::synchronized_queue<std::string> synchronous_string_q;
-    ASSERT_EQ(synchronous_string_q.size(), 0);
-    ASSERT_TRUE(synchronous_string_q.empty());
-    synchronous_string_q.push("one");
-    synchronous_string_q.push("two");
-    synchronous_string_q.push("three");
-    ASSERT_FALSE(synchronous_string_q.empty());
-    ASSERT_EQ(synchronous_string_q.size(), 3);
-    ASSERT_EQ(synchronous_string_q.pop(), "one");
-    ASSERT_EQ(synchronous_string_q.size(), 2);
-    ASSERT_EQ(synchronous_string_q.pop(), "two");
-    ASSERT_EQ(synchronous_string_q.size(), 1);
-    ASSERT_EQ(synchronous_string_q.pop(), "three");
-    ASSERT_EQ(synchronous_string_q.size(), 0);
-    ASSERT_TRUE(synchronous_string_q.empty());
-}
 
 // test that adding immediate tasks are executed before added scheduled tasks
 // even if they are scheduled while waiting for the next scheduled task deadline
@@ -81,6 +36,54 @@ TEST(executor, ordering)
     scheduled_call.cancel();
     ASSERT_EQ(task_mark, mark::immediate);
 }
+
+TEST(executor, sync_async_ordering)
+{
+    std::vector<int> sequence;
+    auto add = [&](int value) {
+        sequence.push_back(value);
+    };
+
+    {
+        venus::executor executor;
+        executor.call([&]() { add(1); });
+        executor.call_async([&]() { add(2); });
+        executor.call_async([&]() { add(3); });
+        executor.call([&]() { add(4); });
+    }
+
+    ASSERT_THAT(sequence, testing::ElementsAre(1, 2, 3, 4));
+}
+
+TEST(executor, ordering_sequence)
+{
+    venus::executor executor;
+
+    std::mutex mutex;
+    std::vector<int> sequence;
+    auto add = [&](int value) {
+        std::lock_guard<std::mutex> lock(mutex);
+        sequence.push_back(value);
+    };
+
+    executor.call_after(1001us, [&]() { add(1); });
+    executor.call_after(1002us, [&]() { add(2); });
+    executor.synchronize();
+    executor.call_after(1003us, [&]() { add(3); });
+    executor.call_after(1004us, [&]() { add(4); });
+
+    using task_t = std::packaged_task<void()>;
+    auto task = std::make_shared<task_t>([&]() {
+        add(5);
+    });
+
+    auto future = task->get_future();
+    executor.call_after(1005us, [task] { (*task)(); });
+    future.wait();
+
+    ASSERT_THAT(sequence, testing::ElementsAre(1, 2, 3, 4, 5));
+}
+
 
 int main(int argc, char ** argv)
 {

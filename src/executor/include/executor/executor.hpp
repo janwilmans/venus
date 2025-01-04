@@ -40,6 +40,13 @@ class executor
 {
 public:
     executor();
+
+    /**
+     * @brief The destructor of the executor ensures that any ongoing tasks initiated by call(), tasks scheduled via call_async, or
+     * call_at / call_after that have reached their scheduled time, are completed before the destructor finishes execution.
+     *
+     * Note: users still using the executor during destruction are in violation of the C++ object lifetime rules.
+     */
     ~executor();
 
     template <typename Fn>

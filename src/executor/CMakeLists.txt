@@ -12,11 +12,13 @@ add_library(venus::executor ALIAS venus_executor_library)
 
 add_executable(executor_test
   test/executor_test.cpp
+  test/synchronized_queue_test.cpp
 )
 
 target_link_libraries(executor_test
 PRIVATE
   fmt::fmt
+  GTest::gmock
   GTest::gtest
   GTest::gtest_main
   venus::executor
