@@ -17,8 +17,8 @@ find_package(Threads REQUIRED)
 
 include(CMakeLists.warnings.cmake)
 
-#add_compile_options(-fsanitize=address)
-#add_link_options(-fsanitize=address)
+#add_compile_options(-fsanitize=address,undefined)
+#add_link_options(-fsanitize=address,undefined)
 
 #add_compile_options(-fsanitize=thread -g -O1)
 #add_link_options(-fsanitize=thread)

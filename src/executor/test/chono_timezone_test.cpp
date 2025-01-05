@@ -41,13 +41,13 @@ TEST(chrono, timezone_behaviour_duration)
     std::mutex mutex;
     std::condition_variable condition;
 
-    bool stop = false;
+    std::atomic<bool> stop(false);
     std::chrono::nanoseconds duration = 30s;
     auto result = Result::Empty;
 
     auto wait_function = [&] {
         std::unique_lock<std::mutex> lock(mutex);
-        auto wait_result = condition.wait_for(lock, duration, [&]() { return stop; });
+        auto wait_result = condition.wait_for(lock, duration, [&]() { return stop.load(); });
         if (wait_result)
         {
             // stop was set
@@ -67,7 +67,7 @@ TEST(chrono, timezone_behaviour_duration)
     condition.notify_one();
     std::this_thread::sleep_for(2s);
 
-    stop = true;
+    stop.store(true);
     condition.notify_one();
     t.join();
 
@@ -94,13 +94,13 @@ TEST(chrono, timezone_behaviour_duration_system_clock_timepoint)
     std::mutex mutex;
     std::condition_variable condition;
 
-    bool stop = false;
+    std::atomic<bool> stop(false);
     auto timepoint = std::chrono::system_clock::now() + 30s;
     auto result = Result::Empty;
 
     auto wait_function = [&] {
         std::unique_lock<std::mutex> lock(mutex);
-        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop; });
+        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop.load(); });
         if (wait_result)
         {
             // stop was set
@@ -127,7 +127,7 @@ TEST(chrono, timezone_behaviour_duration_system_clock_timepoint)
         }
     }
 
-    stop = true;
+    stop.store(true);
     condition.notify_one();
     t.join();
 
@@ -155,7 +155,7 @@ TEST(chrono, timezone_behaviour_duration_steady_clock_timepoint)
     std::mutex mutex;
     std::condition_variable condition;
 
-    bool stop = false;
+    std::atomic<bool> stop(false);
     auto timepoint = std::chrono::steady_clock::now() + 30s;
 
     std::atomic<Result> result;
@@ -163,7 +163,7 @@ TEST(chrono, timezone_behaviour_duration_steady_clock_timepoint)
 
     auto wait_function = [&] {
         std::unique_lock<std::mutex> lock(mutex);
-        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop; });
+        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop.load(); });
         if (wait_result)
         {
             // stop was set
@@ -191,7 +191,7 @@ TEST(chrono, timezone_behaviour_duration_steady_clock_timepoint)
         }
     }
 
-    stop = true;
+    stop.store(true);
     condition.notify_one();
     t.join();
 

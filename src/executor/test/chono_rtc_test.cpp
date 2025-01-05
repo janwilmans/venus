@@ -41,12 +41,12 @@ TEST(chrono, rtc_behaviour_duration)
     std::mutex mutex;
     std::condition_variable condition;
 
-    bool stop = false;
+    std::atomic<bool> stop(false);
     auto result = Result::Empty;
 
     auto wait_function = [&] {
         std::unique_lock<std::mutex> lock(mutex);
-        auto wait_result = condition.wait_for(lock, 30s, [&]() { return stop; });
+        auto wait_result = condition.wait_for(lock, 30s, [&]() { return stop.load(); });
         if (wait_result)
         {
             // stop was set
@@ -67,7 +67,7 @@ TEST(chrono, rtc_behaviour_duration)
     condition.notify_one();
     std::this_thread::sleep_for(2s);
 
-    stop = true;
+    stop.store(true);
     condition.notify_one();
     t.join();
 
@@ -95,13 +95,14 @@ TEST(chrono, rtc_behaviour_duration_system_clock_timepoint)
     std::mutex mutex;
     std::condition_variable condition;
 
-    bool stop = false;
+    std::atomic<bool> stop(false);
     auto timepoint = std::chrono::system_clock::now() + 30s;
-    auto result = Result::Empty;
+
+    std::atomic<Result> result(Result::Empty);
 
     auto wait_function = [&] {
         std::unique_lock<std::mutex> lock(mutex);
-        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop; });
+        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop.load(); });
         if (wait_result)
         {
             // stop was set
@@ -157,7 +158,7 @@ TEST(chrono, rtc_behaviour_duration_steady_clock_timepoint)
     std::mutex mutex;
     std::condition_variable condition;
 
-    bool stop = false;
+    std::atomic<bool> stop(false);
     auto timepoint = std::chrono::steady_clock::now() + 30s;
 
     std::atomic<Result> result;
@@ -165,7 +166,7 @@ TEST(chrono, rtc_behaviour_duration_steady_clock_timepoint)
 
     auto wait_function = [&] {
         std::unique_lock<std::mutex> lock(mutex);
-        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop; });
+        auto wait_result = condition.wait_until(lock, timepoint, [&]() { return stop.load(); });
         if (wait_result)
         {
             // stop was set
