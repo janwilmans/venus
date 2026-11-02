@@ -75,12 +75,12 @@ scheduled_call executor::call_at(const time_point_t & at, function_t function)
 
 scheduled_call executor::call_after(const duration_t & delay, function_t function)
 {
-    return call_at(std::chrono::steady_clock::now() + delay, std::move(function));
+    return call_at(clock_type::now() + delay, std::move(function));
 }
 
 scheduled_call executor::call_every(const duration_t & repeat_interval, function_t function)
 {
-    return call_every(std::chrono::steady_clock::now(), repeat_interval, std::move(function));
+    return call_every(clock_type::now(), repeat_interval, std::move(function));
 }
 
 scheduled_call executor::call_every(const time_point_t & at, const duration_t & repeat_interval, function_t function)

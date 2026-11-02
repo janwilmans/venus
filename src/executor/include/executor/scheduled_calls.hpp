@@ -11,9 +11,9 @@
 
 namespace venus {
 
-using clock_t = std::chrono::steady_clock;
-using time_point_t = clock_t::time_point;
-using duration_t = clock_t::duration;
+using clock_type = std::chrono::steady_clock; // not clock_t, that would clash with ::clock_t from <ctime>
+using time_point_t = clock_type::time_point;
+using duration_t = clock_type::duration;
 using function_t = std::function<void()>;
 
 struct call_t
