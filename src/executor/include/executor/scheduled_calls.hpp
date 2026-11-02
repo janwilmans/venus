@@ -16,7 +16,7 @@ using function_t = std::function<void()>;
 
 struct call_t
 {
-    using id_t = std::uint32_t;
+    using id_t = std::uint64_t;
     call_t(call_t::id_t id, time_point_t at, function_t function);
     call_t(call_t::id_t id, time_point_t at, duration_t repeat_interval, function_t function);
 

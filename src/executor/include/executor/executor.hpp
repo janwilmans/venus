@@ -22,7 +22,7 @@ class executor;
 class scheduled_call
 {
 public:
-    using id_t = std::uint32_t;
+    using id_t = venus::call_t::id_t;
 
     scheduled_call(venus::executor & executor, scheduled_call::id_t id);
     void cancel();
@@ -33,8 +33,6 @@ private:
     executor * m_executor;
     scheduled_call::id_t m_id;
 };
-
-[[nodiscard]] scheduled_call::id_t make_callid();
 
 class executor
 {
@@ -145,6 +143,13 @@ private:
      *
      */
     scheduled_calls m_scheduled_calls;
+
+    /**
+     * @brief Source of the ids of scheduled calls, 64 bits so it does not wrap around in practice.
+     *
+     * Atomic because call_at(), call_after() and call_every() can be called from any thread.
+     */
+    std::atomic<call_t::id_t> m_last_call_id = {0};
 
     std::atomic<std::thread::id> m_threadId = {};
 

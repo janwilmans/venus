@@ -12,12 +12,6 @@
 
 namespace venus {
 
-[[nodiscard]] scheduled_call::id_t make_callid()
-{
-    static std::atomic<scheduled_call::id_t> id(0);
-    return ++id;
-}
-
 scheduled_call::scheduled_call(venus::executor & executor, scheduled_call::id_t id) :
     m_executor(&executor),
     m_id(id)
@@ -89,7 +83,7 @@ scheduled_call executor::call_every(const duration_t & repeat_interval, function
 
 scheduled_call executor::call_every(const time_point_t & at, const duration_t & repeat_interval, function_t function)
 {
-    auto id = make_callid();
+    auto id = ++m_last_call_id;
     if (is_executor_thread())
     {
         // insert immediately, so a cancel() that follows in the same task finds the call
