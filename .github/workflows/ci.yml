@@ -44,6 +44,11 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
 
+      # the build regenerates the single header, it must be committed together with the headers it is made of
+      - name: Check that the committed single header is up to date
+        shell: bash
+        run: git diff --exit-code -- src/executor/include/venus.hpp
+
   # venus used by another project (test/consumer): no fetched test dependencies, no -Werror, links and runs
   consumer:
     name: consumer-${{ matrix.mode }}-${{ matrix.os }}

@@ -11,6 +11,7 @@ endif()
 
 option(VENUS_BUILD_TESTS "Build the venus tests (fetches googletest)" ${VENUS_IS_TOP_LEVEL})
 option(VENUS_WARNINGS "Compile venus with extra warnings (and -Werror outside CI)" ${VENUS_IS_TOP_LEVEL})
+option(VENUS_SINGLE_HEADER "Generate the single header src/executor/include/venus.hpp during the build" ${VENUS_IS_TOP_LEVEL})
 option(VENUS_INSTALL "Generate the install target, for use with find_package(venus)" ${VENUS_IS_TOP_LEVEL})
 set(VENUS_SANITIZE "" CACHE STRING "Sanitizers to enable, for example 'address,undefined' or 'thread'")
 

@@ -12,6 +12,21 @@ target_link_libraries(venus_executor_library INTERFACE Threads::Threads)
 set_target_properties(venus_executor_library PROPERTIES EXPORT_NAME executor)
 add_library(venus::executor ALIAS venus_executor_library)
 
+# the single header include/venus.hpp is generated from the separate headers and committed, so it is available
+# without a build (for example to include it from a URL in Compiler Explorer); never generated in a consumer's copy
+if (VENUS_SINGLE_HEADER)
+  file(GLOB_RECURSE venus_headers CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/executor/*.hpp)
+  set(venus_single_header ${CMAKE_CURRENT_SOURCE_DIR}/include/venus.hpp)
+  add_custom_command(
+    OUTPUT ${venus_single_header}
+    COMMAND ${CMAKE_COMMAND} -DINCLUDE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/include -DOUTPUT=${venus_single_header}
+            -P ${PROJECT_SOURCE_DIR}/cmake/single_header.cmake
+    DEPENDS ${venus_headers} ${PROJECT_SOURCE_DIR}/cmake/single_header.cmake
+    COMMENT "Generating the single header venus.hpp"
+  )
+  add_custom_target(venus_single_header ALL DEPENDS ${venus_single_header})
+endif()
+
 if (NOT VENUS_BUILD_TESTS)
   return()
 endif()
@@ -40,6 +55,15 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 add_test(NAME executor_test COMMAND executor_test)
+
+# uses only the single header, in a separate executable because it defines the same classes as the separate headers
+add_executable(single_header_test test/single_header_test.cpp)
+target_link_libraries(single_header_test PRIVATE venus::executor)
+if (VENUS_SINGLE_HEADER)
+  add_dependencies(single_header_test venus_single_header)
+endif()
+add_test(NAME single_header_test COMMAND single_header_test)
+set_tests_properties(single_header_test PROPERTIES TIMEOUT 60)
 # a deadlock should fail the test, not hang the build
 set_tests_properties(executor_test PROPERTIES TIMEOUT 120)
 
