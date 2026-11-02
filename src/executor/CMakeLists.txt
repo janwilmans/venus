@@ -31,6 +31,8 @@ PRIVATE
 )
 
 add_test(NAME executor_test COMMAND executor_test)
+# a deadlock should fail the test, not hang the build
+set_tests_properties(executor_test PROPERTIES TIMEOUT 120)
 
 # exploratory tests of std::chrono behaviour when the realtime clock is changed,
 # POSIX only, and not registered with ctest because they modify the system clock (requires root)
