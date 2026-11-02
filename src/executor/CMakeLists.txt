@@ -1,21 +1,12 @@
-add_library(venus_executor_library
-  src/executor.cpp
-  src/scheduled_calls.cpp
-  src/worker_pool.cpp
-  src/dispatcher.cpp
-  include/executor/synchronized_queue.hpp
-  include/executor/task.hpp
-  include/executor/pool_executor.hpp
-  include/executor/dispatcher.hpp
-  include/executor/detail/worker_pool.hpp
-)
+# header-only: no sources to compile, consumers only need the include directory, C++14 and threads
+add_library(venus_executor_library INTERFACE)
 
-target_include_directories(venus_executor_library PUBLIC
+target_include_directories(venus_executor_library INTERFACE
     include
 )
 
-target_compile_features(venus_executor_library PUBLIC cxx_std_14)
-target_link_libraries(venus_executor_library PUBLIC Threads::Threads)
+target_compile_features(venus_executor_library INTERFACE cxx_std_14)
+target_link_libraries(venus_executor_library INTERFACE Threads::Threads)
 
 add_library(venus::executor ALIAS venus_executor_library)
 
@@ -29,6 +20,7 @@ add_executable(executor_test
   test/task_test.cpp
   test/pool_executor_test.cpp
   test/dispatcher_test.cpp
+  test/headers_test.cpp
 )
 
 target_link_libraries(executor_test

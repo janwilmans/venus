@@ -14,6 +14,7 @@
 #include <functional>
 #include <future>
 #include <memory>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -184,5 +185,141 @@ private:
     bool m_end = false;
     std::thread m_thread;
 };
+
+// implementation
+
+inline scheduled_call::scheduled_call(venus::executor & executor, scheduled_call::id_t id) :
+    m_executor(executor.m_self),
+    m_id(id)
+{
+}
+
+inline void scheduled_call::cancel()
+{
+    auto executor = m_executor.lock();
+    if (executor)
+    {
+        (*executor)->cancel(m_id);
+    }
+    m_executor.reset();
+}
+
+inline scheduled_call::id_t scheduled_call::id() const
+{
+    return m_id;
+}
+
+inline executor::executor() :
+    m_thread([this] { run(); })
+{
+    synchronize();
+}
+
+inline executor::~executor()
+{
+    add([this] { m_end = true; });
+    m_thread.join();
+}
+
+inline bool executor::is_executor_thread() const
+{
+    return std::this_thread::get_id() == m_threadId;
+}
+
+inline void executor::add(std::function<void()> fn)
+{
+    m_queue.push(std::move(fn));
+}
+
+inline void executor::synchronize()
+{
+    if (is_executor_thread())
+    {
+        throw std::logic_error("venus::executor::synchronize() called on the executor thread, this would deadlock");
+    }
+    std::promise<bool> sync;
+    add([&sync]() { sync.set_value(true); });
+    sync.get_future().get();
+}
+
+inline scheduled_call executor::call_at(const time_point_t & at, function_t function)
+{
+    return call_every(at, {}, std::move(function));
+}
+
+inline scheduled_call executor::call_after(const duration_t & delay, function_t function)
+{
+    return call_at(clock_type::now() + delay, std::move(function));
+}
+
+inline scheduled_call executor::call_every(const duration_t & repeat_interval, function_t function)
+{
+    return call_every(clock_type::now(), repeat_interval, std::move(function));
+}
+
+inline scheduled_call executor::call_every(const time_point_t & at, const duration_t & repeat_interval, function_t function)
+{
+    auto id = ++m_last_call_id;
+    venus::call_t call(id, at, repeat_interval, std::move(function));
+    if (is_executor_thread())
+    {
+        // insert immediately, so a cancel() that follows in the same task finds the call
+        m_scheduled_calls.insert(std::move(call));
+    }
+    else
+    {
+        add([this, call = std::move(call)]() mutable { m_scheduled_calls.insert(std::move(call)); });
+    }
+    return scheduled_call(*this, id);
+}
+
+inline void executor::cancel(const call_t::id_t id)
+{
+    if (is_executor_thread())
+    {
+        m_scheduled_calls.remove(id);
+    }
+    else
+    {
+        call([this, id]() { m_scheduled_calls.remove(id); });
+    }
+}
+
+inline void executor::run()
+{
+    m_threadId = std::this_thread::get_id();
+    while (!m_end)
+    {
+        try
+        {
+            run_one();
+        }
+        catch (...)
+        {
+            // exceptions from call() and call_async() are delivered through their futures,
+            // exceptions from add(), call_at(), call_after() and call_every() tasks are ignored.
+        }
+    }
+}
+
+inline void executor::run_one()
+{
+    // if there are scheduled_calls and the deadline of first call expires, execute it.
+    if (!m_scheduled_calls.empty() && !wait_for_work(m_scheduled_calls.next_deadline()))
+    {
+        m_scheduled_calls.pop_and_reschedule().m_function();
+    }
+    else
+    {
+        // either there are no scheduled_calls and pop() will block until there is work to do
+        // or `wait_for_work` returned `true` and there is work to do.
+        return m_queue.pop()();
+    }
+}
+
+inline bool executor::wait_for_work(const time_point_t timepoint) const
+{
+    return m_queue.wait_for_not_empty(timepoint);
+}
 
 } // namespace venus
