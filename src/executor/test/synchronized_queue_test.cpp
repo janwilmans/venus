@@ -6,7 +6,6 @@
 #include <future>
 #include <gtest/gtest.h>
 
-#include <fmt/core.h>
 #include <memory>
 #include <mutex>
 #include <string>

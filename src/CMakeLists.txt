@@ -1,26 +1,46 @@
-project(venus)
-
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
-enable_testing()
-include(CTest)
+project(venus CXX)
 
-#
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# defaults are ON when venus is the top-level project, OFF when consumed through add_subdirectory/FetchContent
+if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+  set(VENUS_IS_TOP_LEVEL ON)
+else()
+  set(VENUS_IS_TOP_LEVEL OFF)
+endif()
 
-include(CMakeLists.fmt.cmake)
-include(CMakeLists.googletest.cmake)
+option(VENUS_BUILD_TESTS "Build the venus tests (fetches googletest)" ${VENUS_IS_TOP_LEVEL})
+option(VENUS_WARNINGS "Compile venus with extra warnings (and -Werror outside CI)" ${VENUS_IS_TOP_LEVEL})
+set(VENUS_SANITIZE "" CACHE STRING "Sanitizers to enable, for example 'address,undefined' or 'thread'")
+
+if (VENUS_IS_TOP_LEVEL)
+  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
 
 find_package(Threads REQUIRED)
 
-include(CMakeLists.warnings.cmake)
+if (VENUS_BUILD_TESTS)
+  enable_testing()
+  include(CMakeLists.googletest.cmake)
+  if (NOT WIN32)
+    # fmt is only used by the POSIX-only chrono exploration tests
+    include(CMakeLists.fmt.cmake)
+  endif()
+endif()
 
-#add_compile_options(-fsanitize=address,undefined)
-#add_link_options(-fsanitize=address,undefined)
+if (VENUS_WARNINGS)
+  include(CMakeLists.warnings.cmake)
+endif()
 
-#add_compile_options(-fsanitize=thread -g -O1)
-#add_link_options(-fsanitize=thread)
+if (VENUS_SANITIZE)
+  if (MSVC)
+    add_compile_options(/fsanitize=${VENUS_SANITIZE})
+  else()
+    add_compile_options(-fsanitize=${VENUS_SANITIZE} -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=${VENUS_SANITIZE})
+  endif()
+endif()
 
 add_subdirectory(executor)

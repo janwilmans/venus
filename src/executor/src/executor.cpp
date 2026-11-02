@@ -117,13 +117,10 @@ void executor::run()
         {
             run_one();
         }
-        catch (std::exception & e)
-        {
-            // cdbg << "executor: exception ignored: " << e.what() << "\n";
-        }
         catch (...)
         {
-            // cdbg << "executor: exception ignored\n";
+            // exceptions from call() and call_async() are delivered through their futures,
+            // exceptions from add(), call_at(), call_after() and call_every() tasks are ignored.
         }
     }
 }

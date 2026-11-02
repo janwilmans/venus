@@ -11,6 +11,10 @@ if (NOT BUILD_IN_TREE)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
   set(CMAKE_CXX_EXTENSIONS OFF)
 
+  # use the same (dynamic) runtime as the tests on MSVC, and do not install googletest with venus
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+
   if (OLDER_GCC)
 
     message(STATUS "Building ${PROJECT_NAME} as standalone project, fetch GoogleTest release-1.8.1")
