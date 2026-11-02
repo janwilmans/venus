@@ -34,12 +34,12 @@ If this sounds too trivial, that is good, because that's what I'm aiming for.
 Each example opens in Compiler Explorer and runs with GCC 4.9.2 and GCC 14.2. It includes the single header from GitHub, so it always uses the latest version:
 
 ```cpp
-#include <https://raw.githubusercontent.com/janwilmans/venus/refs/heads/master/src/executor/include/venus.hpp>
+#include <https://raw.githubusercontent.com/janwilmans/venus/refs/heads/main/src/executor/include/venus.hpp>
 ```
 
--   [venus::executor](https://compiler-explorer.com/z/ocWqEo7ax): many producers, one thread executes all tasks in order, timers ([source](examples/executor_example.cpp))
--   [venus::pool_executor](https://compiler-explorer.com/z/vfPW8rMsK): parallel sum on all cores ([source](examples/pool_executor_example.cpp))
--   [venus::dispatcher](https://compiler-explorer.com/z/Kqczxdjaj): parallel work at low priority, results applied on a serial queue without locks ([source](examples/dispatcher_example.cpp))
+-   [venus::executor](https://compiler-explorer.com/z/nMoTK9a5s): many producers, one thread executes all tasks in order, timers ([source](examples/executor_example.cpp))
+-   [venus::pool_executor](https://compiler-explorer.com/z/sj6MrYbzK): parallel sum on all cores ([source](examples/pool_executor_example.cpp))
+-   [venus::dispatcher](https://compiler-explorer.com/z/d4GGq96cT): parallel work at low priority, results applied on a serial queue without locks ([source](examples/dispatcher_example.cpp))
 
 `python3 tools/compiler_explorer.py links` creates new links, when the examples change.
 
@@ -51,7 +51,7 @@ With FetchContent:
 include(FetchContent)
 FetchContent_Declare(venus
   GIT_REPOSITORY https://github.com/janwilmans/venus.git
-  GIT_TAG master # better: a specific commit
+  GIT_TAG main # better: a specific commit
 )
 FetchContent_MakeAvailable(venus)
 target_link_libraries(my_target PRIVATE venus::executor)
@@ -147,7 +147,7 @@ GCC 4.9 is the oldest supported compiler. Old compilers are rarely installed, so
 ```sh
 python3 tools/compiler_explorer.py test             # GCC 4.9.0 to 14.2, Clang 3.5 to 15
 python3 tools/compiler_explorer.py test g492 g540   # specific compilers, by Compiler Explorer id
-python3 tools/compiler_explorer.py test --github    # with venus.hpp from GitHub master, as the links use it
+python3 tools/compiler_explorer.py test --github    # with venus.hpp from GitHub main, as the links use it
 ```
 
 The test fails when a compiler reports a warning in the venus headers, because those warnings would show up in the builds of everyone using venus. CI runs this test as well.

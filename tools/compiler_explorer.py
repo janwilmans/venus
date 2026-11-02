@@ -7,7 +7,7 @@ and to create the Compiler Explorer links of the examples in the documentation.
   python3 tools/compiler_explorer.py test g492 g510   ... with specific compilers (Compiler Explorer ids)
   python3 tools/compiler_explorer.py links            create shortlinks for the examples (prints markdown)
 
-On Compiler Explorer, the examples include the single header venus.hpp from GitHub (master) by URL:
+On Compiler Explorer, the examples include the single header venus.hpp from GitHub (main) by URL:
 the browser downloads it and sends it with the source. These commands do the same, using the local venus.hpp
 for 'test' (to test the working tree) and the one on GitHub for 'links' (what the links will use), or the
 other one with --github / --local. Only the Python standard library is used.
@@ -26,7 +26,7 @@ import urllib.request
 API = "https://compiler-explorer.com/api"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SINGLE_HEADER = ROOT / "src" / "executor" / "include" / "venus.hpp"
-SINGLE_HEADER_URL = "https://raw.githubusercontent.com/janwilmans/venus/refs/heads/master/src/executor/include/venus.hpp"
+SINGLE_HEADER_URL = "https://raw.githubusercontent.com/janwilmans/venus/refs/heads/main/src/executor/include/venus.hpp"
 EXAMPLES = ["executor_example", "pool_executor_example", "dispatcher_example"]
 OPTIONS = "-std=c++14 -O2 -pthread -Wall -Wextra -pedantic"
 
@@ -171,7 +171,7 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     test_command = commands.add_parser("test", help="compile and run the examples with old and new compilers")
     test_command.add_argument("compilers", nargs="*", default=TEST_COMPILERS, help="Compiler Explorer compiler ids")
-    test_command.add_argument("--github", action="store_true", help="use venus.hpp from GitHub master")
+    test_command.add_argument("--github", action="store_true", help="use venus.hpp from GitHub main")
     test_command.add_argument("-v", "--verbose", action="store_true", help="also show warnings of passing builds")
     links_command = commands.add_parser("links", help="create Compiler Explorer shortlinks for the examples")
     links_command.add_argument("--local", action="store_true", help="verify with the local venus.hpp")
