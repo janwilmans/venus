@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iterator>
+#include <stdexcept>
 #include <utility>
 
 namespace venus {
@@ -44,7 +45,7 @@ worker_pool::worker_pool(std::size_t thread_count, std::size_t level_count) :
 
 worker_pool::~worker_pool()
 {
-    assert(!is_worker_thread() && "destroying a pool from one of its own tasks will deadlock");
+    // wait_idle() throws when called from a worker, from a noexcept destructor that terminates instead of deadlocking
     wait_idle();
     stop_and_join();
 }
@@ -82,7 +83,10 @@ void worker_pool::push(std::size_t level, task t)
 
 void worker_pool::wait_idle()
 {
-    assert(!is_worker_thread() && "calling wait_idle() from a task on the same pool will deadlock");
+    if (is_worker_thread())
+    {
+        throw std::logic_error("venus: wait_idle() called from a task on the same pool, this would deadlock");
+    }
     std::unique_lock<std::mutex> lock(m_mutex);
     m_idle.wait(lock, [this] { return m_pending == 0; });
 }

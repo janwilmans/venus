@@ -51,7 +51,7 @@ public:
     }
 
     /**
-     * @brief Blocks until all tasks are finished. Must not be called from a task on this pool.
+     * @brief Blocks until all tasks are finished. @throws std::logic_error when called from a task on this pool.
      */
     void wait_idle()
     {

@@ -26,6 +26,7 @@ class executor;
  * @brief Handle to a call scheduled by executor::call_at(), call_after() or call_every()
  *
  * Destroying the handle does _not_ cancel the call.
+ * Calling cancel() after the executor was destroyed does nothing.
  */
 class scheduled_call
 {
@@ -38,7 +39,7 @@ public:
     [[nodiscard]] scheduled_call::id_t id() const;
 
 private:
-    executor * m_executor; // non-owning, a scheduled_call must not be cancel()-ed after its executor is destroyed
+    std::weak_ptr<executor *> m_executor; // expires when the executor is destroyed
     scheduled_call::id_t m_id;
 };
 
@@ -107,6 +108,8 @@ public:
      * Blocks the calling thread until it is synchronized with the executor thread.
      * Ensures that all previously scheduled tasks are completed, providing a consistent
      * state between the executor thread and the calling thread.
+     *
+     * @throws std::logic_error when called on the executor thread, waiting for itself would deadlock.
      */
     void synchronize();
 
@@ -171,6 +174,10 @@ private:
      * Atomic because call_at(), call_after() and call_every() can be called from any thread.
      */
     std::atomic<call_t::id_t> m_last_call_id = {0};
+
+    // scheduled_call handles hold a weak_ptr to this, so cancel() after destruction is detected
+    friend class scheduled_call;
+    std::shared_ptr<executor *> m_self = std::make_shared<executor *>(this);
 
     std::atomic<std::thread::id> m_threadId = {};
 

@@ -7,26 +7,25 @@
 
 #include <algorithm>
 #include <atomic>
-#include <cassert>
+#include <stdexcept>
 #include <utility>
 
 namespace venus {
 
 scheduled_call::scheduled_call(venus::executor & executor, scheduled_call::id_t id) :
-    m_executor(&executor),
+    m_executor(executor.m_self),
     m_id(id)
 {
 }
 
 void scheduled_call::cancel()
 {
-    if (m_executor == nullptr)
+    auto executor = m_executor.lock();
+    if (executor)
     {
-        return;
+        (*executor)->cancel(m_id);
     }
-
-    m_executor->cancel(m_id);
-    m_executor = nullptr;
+    m_executor.reset();
 }
 
 scheduled_call::id_t scheduled_call::id() const
@@ -60,7 +59,10 @@ void executor::add(std::function<void()> fn)
 
 void executor::synchronize()
 {
-    assert(!is_executor_thread() && "Calling synchronize() inside call() will cause a deadlock");
+    if (is_executor_thread())
+    {
+        throw std::logic_error("venus::executor::synchronize() called on the executor thread, this would deadlock");
+    }
     std::promise<bool> sync;
     add([&sync]() { sync.set_value(true); });
     sync.get_future().get();

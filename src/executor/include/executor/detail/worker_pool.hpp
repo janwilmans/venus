@@ -54,7 +54,7 @@ public:
     /**
      * @brief Blocks until there are no queued or running tasks.
      *
-     * Must not be called from a task running on this pool, that would wait for itself.
+     * @throws std::logic_error when called from a task running on this pool, it would wait for itself.
      */
     void wait_idle();
 

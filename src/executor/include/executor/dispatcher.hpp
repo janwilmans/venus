@@ -112,7 +112,7 @@ public:
     [[nodiscard]] serial_queue make_serial_queue(priority p = priority::normal);
 
     /**
-     * @brief Blocks until all tasks, including those in serial queues, are finished. Must not be called from a task.
+     * @brief Blocks until all tasks, including those in serial queues, are finished. @throws std::logic_error when called from a task.
      */
     void wait_idle();
 

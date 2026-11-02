@@ -149,3 +149,10 @@ TEST(pool_executor, multiple_producers)
     }
     ASSERT_EQ(count.load(), producers * tasks_per_producer);
 }
+
+TEST(pool_executor, wait_idle_from_a_task_throws_instead_of_deadlock)
+{
+    venus::pool_executor pool(1);
+    auto future = pool.call_async([&] { pool.wait_idle(); });
+    ASSERT_THROW(future.get(), std::logic_error);
+}

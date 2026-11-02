@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -106,4 +107,18 @@ int main(int argc, char ** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
+}
+
+TEST(executor, synchronize_on_executor_thread_throws_instead_of_deadlock)
+{
+    venus::executor executor;
+    ASSERT_THROW(executor.call([&] { executor.synchronize(); }), std::logic_error);
+}
+
+TEST(executor, cancel_after_executor_is_destroyed_does_nothing)
+{
+    auto executor = std::make_unique<venus::executor>();
+    auto call = executor->call_after(1h, [] {});
+    executor.reset();
+    call.cancel();
 }
