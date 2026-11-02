@@ -33,12 +33,12 @@ OPTIONS = "-std=c++14 -O2 -pthread -Wall -Wextra -pedantic"
 # GCC 4.9.2 is the oldest supported compiler, the others check that nothing breaks in between
 # (not gcc 4.9.4: its installation on Compiler Explorer cannot compile #include <memory>)
 TEST_COMPILERS = [
-    "g490", "g492", "g493", "g540", "g65", "g75", "g85", "g95", "g105", "g114", "g142",
+    "g490", "g492", "g493", "g540", "g65", "g75", "g85", "g95", "g105", "g114", "g142", "g162",
     "clang350", "clang391", "clang600", "clang1000", "clang1500",
 ]
 
 # compilers shown in the documentation links: the oldest supported and a recent one
-LINK_COMPILERS = ["g492", "g142"]
+LINK_COMPILERS = ["g492", "g162"]
 
 
 def request(path, body=None):
@@ -140,15 +140,18 @@ def test(compilers, header, verbose):
 
 
 def client_state(name):
-    """a Compiler Explorer editor with the example, and an executor pane per compiler"""
-    def executor(compiler):
-        return {"compiler": {"id": compiler, "options": OPTIONS, "filters": {"execute": True}, "libs": []},
-                "compilerVisible": False, "compilerOutputVisible": True, "arguments": "", "argumentsVisible": False,
-                "stdin": "", "stdinVisible": False, "wrap": True}
+    """a Compiler Explorer editor with the example, and per compiler: the assembly, and the output of running it"""
+    filters = {"binary": False, "binaryObject": False, "commentOnly": True, "demangle": True, "directives": True,
+               "execute": True, "intel": True, "labels": True, "libraryCode": True, "trim": False, "debugCalls": False}
+
+    def compiler(index, compiler_id):
+        return {"_internalid": index, "id": compiler_id, "options": OPTIONS, "filters": filters, "libs": [],
+                "specialoutputs": ["compilerOutput"], "tools": [], "overrides": []}
 
     return {
-        "sessions": [{"id": 1, "language": "c++", "source": online_source(name), "compilers": [],
-                      "executors": [executor(c) for c in LINK_COMPILERS]}],
+        "sessions": [{"id": 1, "language": "c++", "source": online_source(name), "conformanceview": False,
+                      "compilers": [compiler(i, c) for i, c in enumerate(LINK_COMPILERS, start=1)],
+                      "executors": []}],
         "trees": [],
     }
 
