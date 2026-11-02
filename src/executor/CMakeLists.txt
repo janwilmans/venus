@@ -2,9 +2,11 @@ add_library(venus_executor_library
   src/executor.cpp
   src/scheduled_calls.cpp
   src/worker_pool.cpp
+  src/dispatcher.cpp
   include/executor/synchronized_queue.hpp
   include/executor/task.hpp
   include/executor/pool_executor.hpp
+  include/executor/dispatcher.hpp
   include/executor/detail/worker_pool.hpp
 )
 
@@ -26,6 +28,7 @@ add_executable(executor_test
   test/synchronized_queue_test.cpp
   test/task_test.cpp
   test/pool_executor_test.cpp
+  test/dispatcher_test.cpp
 )
 
 target_link_libraries(executor_test
