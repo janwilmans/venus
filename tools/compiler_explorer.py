@@ -7,8 +7,10 @@ and to create the Compiler Explorer links of the examples in the documentation.
   python3 tools/compiler_explorer.py test g492 g510   ... with specific compilers (Compiler Explorer ids)
   python3 tools/compiler_explorer.py links            create shortlinks for the examples (prints markdown)
 
-The headers and the example are sent as a multi-file project, nothing is needed on the Compiler Explorer side.
-Only the Python standard library is used.
+On Compiler Explorer, the examples include the single header venus.hpp from GitHub (master) by URL:
+the browser downloads it and sends it with the source. These commands do the same, using the local venus.hpp
+for 'test' (to test the working tree) and the one on GitHub for 'links' (what the links will use), or the
+other one with --github / --local. Only the Python standard library is used.
 """
 
 import argparse
@@ -18,13 +20,15 @@ import pathlib
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 API = "https://compiler-explorer.com/api"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-INCLUDE_DIR = ROOT / "src" / "executor" / "include"
+SINGLE_HEADER = ROOT / "src" / "executor" / "include" / "venus.hpp"
+SINGLE_HEADER_URL = "https://raw.githubusercontent.com/janwilmans/venus/refs/heads/master/src/executor/include/venus.hpp"
 EXAMPLES = ["executor_example", "pool_executor_example", "dispatcher_example"]
-OPTIONS = "-std=c++14 -O2 -pthread -I. -Wall -Wextra -pedantic"
+OPTIONS = "-std=c++14 -O2 -pthread -Wall -Wextra -pedantic"
 
 # GCC 4.9.2 is the oldest supported compiler, the others check that nothing breaks in between
 # (not gcc 4.9.4: its installation on Compiler Explorer cannot compile #include <memory>)
@@ -45,24 +49,44 @@ def request(path, body=None):
         return json.load(response)
 
 
-def header_files():
-    """all venus headers, with paths relative to the include directory, for example 'executor/executor.hpp'"""
-    return [{"filename": path.relative_to(INCLUDE_DIR).as_posix(), "contents": path.read_text()}
-            for path in sorted(INCLUDE_DIR.rglob("*.hpp"))]
+def single_header(from_github):
+    if from_github:
+        with urllib.request.urlopen(SINGLE_HEADER_URL, timeout=60) as response:
+            return response.read().decode()
+    return SINGLE_HEADER.read_text()
 
 
-def example_source(name):
-    return (ROOT / "examples" / f"{name}.cpp").read_text()
+def online_source(name):
+    """the example, with its '#include "executor/..."' lines replaced by one URL include of the single header"""
+    lines = []
+    replaced = False
+    for line in (ROOT / "examples" / f"{name}.cpp").read_text().splitlines():
+        if re.match(r'\s*#\s*include\s*"executor/', line):
+            if not replaced:
+                lines.append(f"#include <{SINGLE_HEADER_URL}>")
+                replaced = True
+            continue
+        lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+def as_sent_by_browser(source, header):
+    """what the Compiler Explorer page sends: URL includes become includes of files named <host><path>"""
+    url = urllib.parse.urlparse(SINGLE_HEADER_URL)
+    filename = url.netloc + url.path
+    source = source.replace(f"#include <{SINGLE_HEADER_URL}>", f'#include "{filename}"')
+    return source, [{"filename": filename, "contents": header}]
 
 
 def strip_ansi(text):
     return re.sub(r"\x1b\[[0-9;]*m?K?", "", text)
 
 
-def compile_and_run(compiler, source):
+def compile_and_run(compiler, source, header):
+    source, files = as_sent_by_browser(source, header)
     body = {
         "source": source,
-        "files": header_files(),
+        "files": files,
         "lang": "c++",
         "options": {
             "userArguments": OPTIONS,
@@ -82,7 +106,7 @@ def available_compilers():
     return {c["id"]: c["name"] for c in request("/compilers/c++?fields=id,name")}
 
 
-def test(compilers, verbose):
+def test(compilers, header, verbose):
     names = available_compilers()
     unknown = [c for c in compilers if c not in names]
     if unknown:
@@ -93,15 +117,15 @@ def test(compilers, verbose):
     failures = 0
     # a few parallel requests at most, Compiler Explorer is a shared free service
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-        futures = {job: pool.submit(compile_and_run, job[0], example_source(job[1])) for job in jobs}
+        futures = {job: pool.submit(compile_and_run, job[0], online_source(job[1]), header) for job in jobs}
         for compiler, example in jobs:
             try:
                 build_code, run_code, messages, output, errors = futures[(compiler, example)].result()
             except urllib.error.URLError as error:
                 build_code, run_code, messages, output, errors = None, None, [str(error)], [], []
             warnings = [m for m in messages if "warning:" in m]
-            # warnings in venus headers or the examples would show up in the builds of users, they fail the test
-            own_warnings = [w for w in warnings if w.startswith(("./executor/", "/app/executor/", "<source>"))]
+            # warnings in venus or the examples would show up in the builds of users, they fail the test
+            own_warnings = [w for w in warnings if "venus.hpp:" in w or w.startswith("<source>")]
             ok = build_code == 0 and run_code == 0 and not own_warnings
             failures += not ok
             status = "ok  " if ok else "FAIL"
@@ -116,35 +140,27 @@ def test(compilers, verbose):
 
 
 def client_state(name):
-    """a Compiler Explorer multi-file 'tree': the example as main source, the venus headers as closed files"""
-    source = example_source(name)
-    files = [{"fileId": 1, "isIncluded": True, "isOpen": True, "isMainSource": True,
-              "filename": f"{name}.cpp", "content": source, "editorId": 1, "langId": "c++"}]
-    for file_id, header in enumerate(header_files(), start=2):
-        files.append({"fileId": file_id, "isIncluded": True, "isOpen": False, "isMainSource": False,
-                      "filename": header["filename"], "content": header["contents"], "editorId": -1, "langId": "c++"})
-
+    """a Compiler Explorer editor with the example, and an executor pane per compiler"""
     def executor(compiler):
         return {"compiler": {"id": compiler, "options": OPTIONS, "filters": {"execute": True}, "libs": []},
                 "compilerVisible": False, "compilerOutputVisible": True, "arguments": "", "argumentsVisible": False,
                 "stdin": "", "stdinVisible": False, "wrap": True}
 
     return {
-        "sessions": [{"id": 1, "language": "c++", "source": source, "filename": f"{name}.cpp",
-                      "compilers": [], "executors": []}],
-        "trees": [{"id": 1, "cmakeArgs": "", "customOutputFilename": "", "isCMakeProject": False,
-                   "buildSystem": "none", "compilerLanguageId": "c++", "files": files, "newFileId": len(files) + 1,
-                   "compilers": [], "executors": [executor(c) for c in LINK_COMPILERS]}],
+        "sessions": [{"id": 1, "language": "c++", "source": online_source(name), "compilers": [],
+                      "executors": [executor(c) for c in LINK_COMPILERS]}],
+        "trees": [],
     }
 
 
-def links():
+def links(header):
     for name in EXAMPLES:
         for compiler in LINK_COMPILERS:
-            build_code, run_code, messages, _, _ = compile_and_run(compiler, example_source(name))
+            build_code, run_code, messages, _, _ = compile_and_run(compiler, online_source(name), header)
             if build_code != 0 or run_code != 0:
                 print(f"{name} does not build or run with {compiler}, not creating a link:\n" + "\n".join(messages))
                 return 1
+    for name in EXAMPLES:
         url = request("/shortener", client_state(name))["url"]
         print(f"- [{name}]({url})")
     return 0
@@ -155,13 +171,15 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     test_command = commands.add_parser("test", help="compile and run the examples with old and new compilers")
     test_command.add_argument("compilers", nargs="*", default=TEST_COMPILERS, help="Compiler Explorer compiler ids")
+    test_command.add_argument("--github", action="store_true", help="use venus.hpp from GitHub master")
     test_command.add_argument("-v", "--verbose", action="store_true", help="also show warnings of passing builds")
-    commands.add_parser("links", help="create Compiler Explorer shortlinks for the examples")
+    links_command = commands.add_parser("links", help="create Compiler Explorer shortlinks for the examples")
+    links_command.add_argument("--local", action="store_true", help="verify with the local venus.hpp")
     args = parser.parse_args()
 
     if args.command == "test":
-        return test(args.compilers, args.verbose)
-    return links()
+        return test(args.compilers, single_header(args.github), args.verbose)
+    return links(single_header(not args.local))
 
 
 if __name__ == "__main__":
