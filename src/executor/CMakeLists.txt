@@ -2,6 +2,7 @@ add_library(venus_executor_library
   src/executor.cpp
   src/scheduled_calls.cpp
   include/executor/synchronized_queue.hpp
+  include/executor/task.hpp
 )
 
 target_include_directories(venus_executor_library PUBLIC
@@ -20,6 +21,7 @@ endif()
 add_executable(executor_test
   test/executor_test.cpp
   test/synchronized_queue_test.cpp
+  test/task_test.cpp
 )
 
 target_link_libraries(executor_test
