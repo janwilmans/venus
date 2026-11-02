@@ -78,3 +78,11 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
 
+  # compile and run the examples with old compilers (GCC 4.9 and up, Clang 3.5 and up) on compiler-explorer.com
+  old-compilers:
+    name: compiler-explorer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run the examples on Compiler Explorer
+        run: python3 tools/compiler_explorer.py test
