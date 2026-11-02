@@ -90,9 +90,17 @@ scheduled_call executor::call_every(const duration_t & repeat_interval, function
 scheduled_call executor::call_every(const time_point_t & at, const duration_t & repeat_interval, function_t function)
 {
     auto id = make_callid();
-    add([this, id, at, repeat_interval, function]() {
+    if (is_executor_thread())
+    {
+        // insert immediately, so a cancel() that follows in the same task finds the call
         m_scheduled_calls.insert(venus::call_t(id, at, repeat_interval, function));
-    });
+    }
+    else
+    {
+        add([this, id, at, repeat_interval, function]() {
+            m_scheduled_calls.insert(venus::call_t(id, at, repeat_interval, function));
+        });
+    }
     return scheduled_call(*this, id);
 }
 

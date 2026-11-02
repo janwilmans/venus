@@ -3,12 +3,14 @@
  */
 
 #include "gmock/gmock.h"
+#include <atomic>
 #include <future>
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "executor/executor.hpp"
@@ -83,6 +85,22 @@ TEST(executor, ordering_sequence)
     ASSERT_THAT(sequence, testing::ElementsAre(1, 2, 3, 4, 5));
 }
 
+// call_every() used to defer inserting the call, while cancel() on the executor thread removes it immediately,
+// so a cancel() directly after call_every() inside a task was lost and the call kept repeating forever.
+TEST(executor, cancel_call_every_on_executor_thread)
+{
+    venus::executor executor;
+    std::atomic<int> count(0);
+
+    executor.call([&] {
+        auto call = executor.call_every(1ms, [&] { ++count; });
+        call.cancel();
+    });
+
+    std::this_thread::sleep_for(20ms);
+    executor.synchronize();
+    ASSERT_EQ(count.load(), 0);
+}
 
 int main(int argc, char ** argv)
 {
