@@ -7,6 +7,15 @@ if (CMAKE_CXX_COMPILER MATCHES ".*c..-analyzer")
   message(FATAL_ERROR "you are building for clang-analyser (scan-build) but did not add -DBUILD_WARNINGS_AS_ERRORS=OFF")
 endif()
 
+if (MSVC)
+  message("Adding MSVC warning options")
+  add_compile_options(/W4 /permissive-)
+  if (NOT DEFINED ENV{CI_SERVER})
+    add_compile_options(/WX)
+  endif()
+  return()
+endif()
+
 # extra warnings from https://github.com/lefticus/cpp_starter_project/blob/master/cmake/CompilerWarnings.cmake
 # -Wdouble-promotion # not sure when it is a problem or what to do instead?
 
@@ -24,7 +33,6 @@ add_compile_options(
   -Wvla
   -Wsign-conversion
   -Wconversion
-  -Wno-attributes
   $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
 )
 
@@ -74,7 +82,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         -Wno-array-bounds
         -Wno-stringop-overflow
         -Wno-dangling-reference
-        -Wno-c++17-attribute-extensions
       )
     endif()
 
@@ -84,6 +91,5 @@ endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(
       -Wshadow
-      -Wno-c++17-attribute-extensions
       )
 endif()

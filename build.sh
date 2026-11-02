@@ -5,6 +5,6 @@
 
 cmake -Wno-dev -G Ninja \
 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
--B build/release src
+-B build/release .
 ninja -C build/release
 

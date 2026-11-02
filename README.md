@@ -1,13 +1,13 @@
 # venus
 
-Venus is yet another executor library, why? because I needed something simple and I couldn't find anything oneline.
+Venus is yet another executor library, why? because I needed something simple and I couldn't find anything online.
 
 The objective is to solve these common problems, one or more of these can apply:
 
 -   you have a data set that needs to be modified by multiple actors, possibly on different threads
--   you need to parallizable work
--   result(s) needs to be synchronized/sequentilized periodically
--   you need to dispatch work into the background and have callback with the results
+-   you need to parallelize work
+-   result(s) need to be synchronized/sequentialized periodically
+-   you need to dispatch work into the background and have a callback with the results
 
 The main tools we'll be using are:
 
@@ -22,52 +22,146 @@ If this sounds too trivial, that is good, because that's what I'm aiming for.
 ## Requirements
 
 -   Queues, Mutexes and Threads
--   These are available from C++14 and we will use them as such.
--   Tested with GCC 4.9.2 and GCC 14.2.0
--   a modern cmake version is required (3.18), as low as 3.11 might work as long as FetchContent is supported, but I did not try this. I tested with cmake version [3.31.20250103-gb779fcf](https://github.com/Kitware/CMake/tree/b779fcf6a048ffe8a87eb07f6abd69fd9cedd13f) on GCC 4.9.2 and that compiled out of the box.
+-   These are available from C++14 and we will use them as such, there are no dependencies other than the standard library.
+-   venus is header-only: copying `src/executor/include` into your project is enough, CMake is optional.
+-   Tested with GCC 14.2.0 and MSVC 19.44 (Visual Studio 2022). CI builds and tests with GCC, Clang, AppleClang and MSVC, in C++14 and C++17, with address, undefined behavior and thread sanitizers.
+-   The examples are compiled and run with GCC 4.9.0 to 14.2 and Clang 3.5 to 15 on [Compiler Explorer](https://compiler-explorer.com), see [Testing with old compilers](#testing-with-old-compilers).
+-   To use the CMake files, cmake 3.18 or newer is required.
+
+## Try it online
+
+Each example opens in Compiler Explorer with the venus headers included, and runs with GCC 4.9.2 and GCC 14.2:
+
+-   [venus::executor](https://compiler-explorer.com/z/aK39965j8): many producers, one thread executes all tasks in order, timers ([source](examples/executor_example.cpp))
+-   [venus::pool_executor](https://compiler-explorer.com/z/G8vG3Pvxj): parallel sum on all cores ([source](examples/pool_executor_example.cpp))
+-   [venus::dispatcher](https://compiler-explorer.com/z/Y6c3TMoTn): parallel work at low priority, results applied on a serial queue without locks ([source](examples/dispatcher_example.cpp))
+
+The links contain a copy of the headers from the time they were created; `python3 tools/compiler_explorer.py links` creates new links of the current version.
+
+## Using venus in your project
+
+With FetchContent:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(venus
+  GIT_REPOSITORY https://github.com/janwilmans/venus.git
+  GIT_TAG master # better: a specific commit
+)
+FetchContent_MakeAvailable(venus)
+target_link_libraries(my_target PRIVATE venus::executor)
+```
+
+Or, with venus in a subdirectory of your project, `add_subdirectory(venus)`.
+
+Or, installed with `cmake --install`, `find_package(venus REQUIRED)`.
+
+When venus is used by another project, its tests are not built (so googletest is not fetched), and it is not compiled with extra warnings or `-Werror`.
+The headers are included as `#include "executor/dispatcher.hpp"` (also when installed, they are installed in `<prefix>/include/venus/executor/`).
+
+| CMake option        | Default                    | Meaning                                                              |
+| ------------------- | -------------------------- | -------------------------------------------------------------------- |
+| `VENUS_BUILD_TESTS` | ON only as top-level build | build the tests and examples, fetches googletest                     |
+| `VENUS_WARNINGS`    | ON only as top-level build | extra warnings, and warnings as errors (unless `CI_SERVER` is set)   |
+| `VENUS_INSTALL`     | ON only as top-level build | generate the install target, for `find_package(venus)`               |
+| `VENUS_SANITIZE`    | empty                      | sanitizers to enable, for example `address,undefined` or `thread`    |
 
 ## Executors
 
 Executors are not part of the C++ standard library, so we will implement them.
-Venus' Executors are not exactly the same idea as the 'executor proposal' or the 'paralel STL', I still used the name because I think its fits well. There are two kinds of executors available here:
+Venus' Executors are not exactly the same idea as the 'executor proposal' or the 'parallel STL', I still used the name because I think it fits well. There are three kinds of executors available here:
 
--   Pool executor (venus::pool_executor)
+### Pool executor (venus::pool_executor)
 
-A pool executor, has one queue of work that needs to be processed. It gives no guarentees on when it will be processed, or in what order. You give it a number of threads to use and tasks will be picked up on a best effort basis. As soon as a working thread is done, and there is work in the queue, it is picked up and processed.
+A pool executor has one queue of work that needs to be processed. It gives no guarantees on when it will be processed, or in what order. You give it a number of threads to use (by default, one per core) and tasks will be picked up on a best effort basis. As soon as a working thread is done, and there is work in the queue, it is picked up and processed.
 
-A Pool executor supports Parallelism, not to be confused with Concerrency. In Parallelism, tasks are by definition independent and do not access the same data. This is why it provides no 'thread safety' features what so ever.
+A Pool executor supports Parallelism, not to be confused with Concurrency. In Parallelism, tasks are by definition independent and do not access the same data. This is why it provides no 'thread safety' features whatsoever.
 
 The goal of this executor is to utilize the multitude of cores in the CPU, you have tasks that need doing, let's get them done as soon as possible.
 
-The Pool executor is very good to paralelize work, scatter work, if you like.
+The Pool executor is very good to parallelize work, scatter work, if you like.
 
--   Single thread executor (venus::executor)
+```cpp
+venus::pool_executor pool;
+pool.add([] { /* independent work */ });
+auto result = pool.call_async([] { return 42; }); // std::future<int>
+pool.wait_idle();
+```
 
-A single thread executor, has one queue of work that needs to be processed. It gives a hard first-come-first-serve guarentee. As soon as work is queued, tasks are picked up and processed sequentially.
+### Single thread executor (venus::executor)
 
-Single thread executor allows you to schedule work that is all done sequenctially, this means that all work done by the executor is inherently thread safe without any _significant_ contention on locks.
+A single thread executor has one queue of work that needs to be processed. It gives a hard first-come-first-serve guarantee. As soon as work is queued, tasks are picked up and processed sequentially.
 
-There is still a lock in the queueing mechanism, but instead of having locks that protect your data structure, likely multiple locks in different places that may have to lock/unlocked several times, there is now only _one_ lock that is only touched when work is queued.
+Single thread executor allows you to schedule work that is all done sequentially, this means that all work done by the executor is inherently thread safe without any _significant_ contention on locks.
+
+There is still a lock in the queueing mechanism, but instead of having locks that protect your data structure, likely multiple locks in different places that may have to be locked/unlocked several times, there is now only _one_ lock that is only touched when work is queued.
 
 The Single thread executor is used to synchronize work, gather tasks, so to say.
 
+It also runs timers: `call_at`, `call_after` and `call_every`. Queued tasks always go before timers, so a continuous flood of tasks delays timers.
+
+### Dispatcher (venus::dispatcher)
+
+The dispatcher combines both ideas, inspired by [Grand Central Dispatch](https://en.wikipedia.org/wiki/Grand_Central_Dispatch), but without depending on it. It takes the parts that give most of the benefit:
+
+-   one fixed pool of threads, one per core by default, shared by all producers
+-   three priorities: `high`, `normal` and `low`; a thread always picks the oldest task of the highest priority
+-   `dispatch()` runs tasks in parallel, like the pool executor
+-   `make_serial_queue()` creates serial queues: tasks of one serial queue run one at a time, in order, like on a single thread executor. A serial queue is not a thread, it is a cheap object, so you can have one per producer, data structure or subsystem, and they all share the cores.
+
+A serial queue with work occupies at most one thread at a time, and after a batch of 16 tasks it goes to the back of its priority, so one busy serial queue does not starve the others. Higher priority work does always go first.
+
+```cpp
+venus::dispatcher dispatcher;
+auto model = dispatcher.make_serial_queue(venus::priority::high);
+
+dispatcher.dispatch([&] {
+    auto result = heavy_computation();                          // runs in parallel
+    model.dispatch([&, result] { apply_to_model(result); });    // runs serialized, no locks needed
+}, venus::priority::low);
+```
+
+The dispatcher must outlive its serial queues. Tasks that were dispatched to a serial queue still run when the serial queue object is destroyed.
+
+### Exceptions and lifetime
+
+-   Exceptions thrown by tasks started with `call()`, `call_async()` and `dispatch_async()` are delivered through the returned future. Exceptions thrown by other tasks are caught and ignored, they do not stop the executor.
+-   The destructors of `pool_executor` and `dispatcher` wait until all tasks, including tasks added by tasks, are finished. The destructor of `executor` runs the tasks that were queued before it, and discards timers that have not run yet.
+-   A task that waits for its own executor would deadlock: `executor::synchronize()` on the executor thread, and `wait_idle()` from a task on the same pool or dispatcher, throw `std::logic_error` instead.
+-   Using an executor while it is being destroyed violates the C++ object lifetime rules. Calling `cancel()` on a `scheduled_call` after its executor is destroyed does nothing.
+
+### Timers and clock adjustments
+
+Timers are based on `std::chrono::steady_clock` and should not be affected by adjustments of the system clock. However, libstdc++ before GCC 10 waits on `system_clock` internally, so on those compilers adjusting the system clock can make a timer fire early or late.
+
+## Testing with old compilers
+
+GCC 4.9 is the oldest supported compiler. Old compilers are rarely installed, so `tools/compiler_explorer.py` uses the [Compiler Explorer](https://compiler-explorer.com) API to compile and run the examples with them (it sends the headers and an example, only the Python standard library is needed):
+
+```sh
+python3 tools/compiler_explorer.py test             # GCC 4.9.0 to 14.2, Clang 3.5 to 15
+python3 tools/compiler_explorer.py test g492 g540   # specific compilers, by Compiler Explorer id
+```
+
+The test fails when a compiler reports a warning in the venus headers, because those warnings would show up in the builds of everyone using venus. CI runs this test as well.
+
 ## Effective use of Venus Executors
 
-Both types of executors are intended to work together. If you have paralel work and you need to access data that other tasks can also access you might be temped to add a synchronization primitive like a Mutex. However, if the task you queue on Pool executor can block, you risk blocking other tasks and 'creating an idle core' while other work could be done.
+The executors are intended to work together. If you have parallel work and you need to access data that other tasks can also access you might be tempted to add a synchronization primitive like a Mutex. However, if the task you queue on a Pool executor can block, you risk blocking other tasks and 'creating an idle core' while other work could be done.
 
 Instead, use this strategy:
 
--   first schedule a task on a Single thread executor and either copy the data to work on or just do the work if its a small task.
--   at the end of that task, schedule the paralel work on a Pool executor
--   at the _end_ of the paralel work, schedule a task back on the Single thread executor to synchronously process the result.
+-   first schedule a task on a Single thread executor (or serial queue) and either copy the data to work on or just do the work if it's a small task.
+-   at the end of that task, schedule the parallel work on a Pool executor (or dispatcher)
+-   at the _end_ of the parallel work, schedule a task back on the Single thread executor (or serial queue) to synchronously process the result.
 
 ![image](https://user-images.githubusercontent.com/5933444/176538261-412266f9-ad0f-4fb8-8c6f-4ab8f86ae733.png)
 
 Guidelines:
 
 -   tasks on the Pool executor should not take locks or do blocking I/O (nor should they need to)
--   its OK for tasks on the Pool executor to take a long time
--   tasks on the Single thread executor block all other tasks in its queue, so keep these tasks are short as possible.
+-   it's OK for tasks on the Pool executor to take a long time
+-   tasks on the Single thread executor block all other tasks in its queue, so keep these tasks as short as possible.
 
 References:
 

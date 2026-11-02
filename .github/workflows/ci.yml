@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-gcc, os: ubuntu-latest, cxx: g++ }
+          - { name: linux-clang, os: ubuntu-latest, cxx: clang++ }
+          - { name: linux-gcc-asan-ubsan, os: ubuntu-latest, cxx: g++, sanitize: "address,undefined" }
+          - { name: linux-gcc-tsan, os: ubuntu-latest, cxx: g++, sanitize: thread }
+          - { name: linux-gcc-cxx17, os: ubuntu-latest, cxx: g++, std: 17 }
+          - { name: macos-appleclang, os: macos-latest }
+          - { name: windows-msvc, os: windows-latest }
+          - { name: windows-msvc-cxx17, os: windows-latest, std: 17 }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ThreadSanitizer does not support the high ASLR entropy of recent Ubuntu kernels
+      - name: Reduce ASLR entropy for ThreadSanitizer
+        if: matrix.sanitize == 'thread'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          ${{ matrix.cxx && format('-DCMAKE_CXX_COMPILER={0}', matrix.cxx) || '' }}
+          ${{ matrix.sanitize && format('-DVENUS_SANITIZE={0}', matrix.sanitize) || '' }}
+          ${{ matrix.std && format('-DCMAKE_CXX_STANDARD={0}', matrix.std) || '' }}
+
+      - name: Build
+        run: cmake --build build --config Debug --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+  # venus used by another project (test/consumer): no fetched test dependencies, no -Werror, links and runs
+  consumer:
+    name: consumer-${{ matrix.mode }}-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        mode: [add_subdirectory, fetchcontent, find_package]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install venus
+        if: matrix.mode == 'find_package'
+        shell: bash
+        run: |
+          cmake -S . -B build-venus -DVENUS_BUILD_TESTS=OFF
+          cmake --install build-venus --prefix "${{ github.workspace }}/install" --config Debug
+
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S test/consumer -B build
+          -DVENUS_CONSUME_MODE=${{ matrix.mode }}
+          -DVENUS_GIT_TAG=${{ github.sha }}
+          "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/install"
+
+      - name: Build
+        run: cmake --build build --config Debug --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+  # compile and run the examples with old compilers (GCC 4.9 and up, Clang 3.5 and up) on compiler-explorer.com
+  old-compilers:
+    name: compiler-explorer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run the examples on Compiler Explorer
+        run: python3 tools/compiler_explorer.py test

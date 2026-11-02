@@ -3,13 +3,15 @@
  */
 
 #include "gmock/gmock.h"
+#include <atomic>
 #include <future>
 #include <gtest/gtest.h>
 
-#include <fmt/core.h>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "executor/executor.hpp"
@@ -84,9 +86,51 @@ TEST(executor, ordering_sequence)
     ASSERT_THAT(sequence, testing::ElementsAre(1, 2, 3, 4, 5));
 }
 
+// call_every() used to defer inserting the call, while cancel() on the executor thread removes it immediately,
+// so a cancel() directly after call_every() inside a task was lost and the call kept repeating forever.
+TEST(executor, cancel_call_every_on_executor_thread)
+{
+    venus::executor executor;
+    std::atomic<int> count(0);
+
+    executor.call([&] {
+        auto call = executor.call_every(1ms, [&] { ++count; });
+        call.cancel();
+    });
+
+    std::this_thread::sleep_for(20ms);
+    executor.synchronize();
+    ASSERT_EQ(count.load(), 0);
+}
 
 int main(int argc, char ** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
+}
+
+TEST(executor, synchronize_on_executor_thread_throws_instead_of_deadlock)
+{
+    venus::executor executor;
+    ASSERT_THROW(executor.call([&] { executor.synchronize(); }), std::logic_error);
+}
+
+TEST(executor, cancel_after_executor_is_destroyed_does_nothing)
+{
+    auto executor = std::make_unique<venus::executor>();
+    auto call = executor->call_after(1h, [] {});
+    executor.reset();
+    call.cancel();
+}
+
+TEST(executor, accepts_move_only_tasks)
+{
+    venus::executor executor;
+    auto value = std::make_unique<int>(41);
+    auto future = executor.call_async([value = std::move(value)] { return *value + 1; });
+    ASSERT_EQ(future.get(), 42);
+
+    auto owned = std::make_unique<int>(1);
+    executor.add([owned = std::move(owned)] { (void)*owned; });
+    executor.synchronize();
 }
