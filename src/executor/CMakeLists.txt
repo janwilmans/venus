@@ -33,6 +33,12 @@ PRIVATE
   venus::executor
 )
 
+# googletest's TEST() uses [[maybe_unused]] when the compiler supports it, Clang warns about that in C++14 mode
+# (the venus headers themselves are checked without this exception, by the examples and tools/compiler_explorer.py)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(executor_test PRIVATE -Wno-c++17-attribute-extensions)
+endif()
+
 add_test(NAME executor_test COMMAND executor_test)
 # a deadlock should fail the test, not hang the build
 set_tests_properties(executor_test PROPERTIES TIMEOUT 120)
@@ -53,4 +59,8 @@ if (NOT WIN32)
     GTest::gtest
     GTest::gtest_main
   )
+
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(chrono_test PRIVATE -Wno-c++17-attribute-extensions)
+  endif()
 endif()
