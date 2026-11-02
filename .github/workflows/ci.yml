@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-gcc, os: ubuntu-latest, cxx: g++ }
+          - { name: linux-clang, os: ubuntu-latest, cxx: clang++ }
+          - { name: linux-gcc-asan-ubsan, os: ubuntu-latest, cxx: g++, sanitize: "address,undefined" }
+          - { name: linux-gcc-tsan, os: ubuntu-latest, cxx: g++, sanitize: thread }
+          - { name: macos-appleclang, os: macos-latest }
+          - { name: windows-msvc, os: windows-latest }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ThreadSanitizer does not support the high ASLR entropy of recent Ubuntu kernels
+      - name: Reduce ASLR entropy for ThreadSanitizer
+        if: matrix.sanitize == 'thread'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S src -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          ${{ matrix.cxx && format('-DCMAKE_CXX_COMPILER={0}', matrix.cxx) || '' }}
+          ${{ matrix.sanitize && format('-DVENUS_SANITIZE={0}', matrix.sanitize) || '' }}
+
+      - name: Build
+        run: cmake --build build --config Debug --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+  # venus used as a subproject: no tests, no fetched dependencies, no -Werror
+  consumer:
+    name: consumer-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: venus
+
+      - name: Create consumer project
+        shell: bash
+        run: |
+          mkdir consumer
+          cat > consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(consumer CXX)
+          add_subdirectory(../venus/src venus)
+          if (TARGET GTest::gtest OR TARGET fmt::fmt)
+            message(FATAL_ERROR "venus fetched test dependencies while used as a subproject")
+          endif()
+          add_executable(consumer main.cpp)
+          target_link_libraries(consumer PRIVATE venus::executor)
+          EOF
+          cat > consumer/main.cpp <<'EOF'
+          #include "executor/dispatcher.hpp"
+          #include "executor/executor.hpp"
+          #include "executor/pool_executor.hpp"
+
+          int main()
+          {
+              venus::executor executor;
+              venus::pool_executor pool;
+              venus::dispatcher dispatcher;
+              auto queue = dispatcher.make_serial_queue();
+              const int a = executor.call([] { return 1; });
+              const int b = pool.call_async([] { return 2; }).get();
+              const int c = queue.dispatch_async([] { return 3; }).get();
+              return a + b + c == 6 ? 0 : 1;
+          }
+          EOF
+
+      - name: Configure
+        run: cmake -S consumer -B build
+
+      - name: Build
+        run: cmake --build build --config Debug --parallel
+
+      - name: Run
+        shell: bash
+        run: |
+          if [ -f build/Debug/consumer.exe ]; then build/Debug/consumer.exe; else build/consumer; fi
