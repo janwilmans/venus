@@ -23,22 +23,47 @@ If this sounds too trivial, that is good, because that's what I'm aiming for.
 
 -   Queues, Mutexes and Threads
 -   These are available from C++14 and we will use them as such, there are no dependencies other than the standard library.
--   Tested with GCC 14.2.0 and MSVC 19.44 (Visual Studio 2022); CI builds with GCC, Clang, AppleClang and MSVC. The single thread executor was tested with GCC 4.9.2, the pool executor and dispatcher only use C++14 features that GCC 4.9 supports, but were not tested with it yet.
--   a modern cmake version is required (3.18), as low as 3.11 might work as long as FetchContent is supported, but I did not try this. I tested with cmake version [3.31.20250103-gb779fcf](https://github.com/Kitware/CMake/tree/b779fcf6a048ffe8a87eb07f6abd69fd9cedd13f) on GCC 4.9.2 and that compiled out of the box.
+-   venus is header-only: copying `src/executor/include` into your project is enough, CMake is optional.
+-   Tested with GCC 14.2.0 and MSVC 19.44 (Visual Studio 2022). CI builds and tests with GCC, Clang, AppleClang and MSVC, in C++14 and C++17, with address, undefined behavior and thread sanitizers.
+-   The examples are compiled and run with GCC 4.9.0 to 14.2 and Clang 3.5 to 15 on [Compiler Explorer](https://compiler-explorer.com), see [Testing with old compilers](#testing-with-old-compilers).
+-   To use the CMake files, cmake 3.18 or newer is required.
+
+## Try it online
+
+Each example opens in Compiler Explorer with the venus headers included, and runs with GCC 4.9.2 and GCC 14.2:
+
+-   [venus::executor](https://compiler-explorer.com/z/aK39965j8): many producers, one thread executes all tasks in order, timers ([source](examples/executor_example.cpp))
+-   [venus::pool_executor](https://compiler-explorer.com/z/G8vG3Pvxj): parallel sum on all cores ([source](examples/pool_executor_example.cpp))
+-   [venus::dispatcher](https://compiler-explorer.com/z/Y6c3TMoTn): parallel work at low priority, results applied on a serial queue without locks ([source](examples/dispatcher_example.cpp))
+
+The links contain a copy of the headers from the time they were created; `python3 tools/compiler_explorer.py links` creates new links of the current version.
 
 ## Using venus in your project
 
+With FetchContent:
+
 ```cmake
-add_subdirectory(venus/src venus)
+include(FetchContent)
+FetchContent_Declare(venus
+  GIT_REPOSITORY https://github.com/janwilmans/venus.git
+  GIT_TAG master # better: a specific commit
+)
+FetchContent_MakeAvailable(venus)
 target_link_libraries(my_target PRIVATE venus::executor)
 ```
 
-When venus is used as a subproject, its tests are not built (so googletest is not fetched) and it is not compiled with extra warnings or `-Werror`.
+Or, with venus in a subdirectory of your project, `add_subdirectory(venus)`.
+
+Or, installed with `cmake --install`, `find_package(venus REQUIRED)`.
+
+When venus is used by another project, its tests are not built (so googletest is not fetched), and it is not compiled with extra warnings or `-Werror`.
+The headers are included as `#include "executor/dispatcher.hpp"` (also when installed, they are installed in `<prefix>/include/venus/executor/`).
 
 | CMake option        | Default                    | Meaning                                                              |
 | ------------------- | -------------------------- | -------------------------------------------------------------------- |
-| `VENUS_BUILD_TESTS` | ON only as top-level build | build the tests, fetches googletest                                  |
+| `VENUS_BUILD_TESTS` | ON only as top-level build | build the tests and examples, fetches googletest                     |
 | `VENUS_WARNINGS`    | ON only as top-level build | extra warnings, and warnings as errors (unless `CI_SERVER` is set)   |
+| `VENUS_INSTALL`     | ON only as top-level build | generate the install target, for `find_package(venus)`               |
 | `VENUS_SANITIZE`    | empty                      | sanitizers to enable, for example `address,undefined` or `thread`    |
 
 ## Executors
@@ -102,11 +127,23 @@ The dispatcher must outlive its serial queues. Tasks that were dispatched to a s
 
 -   Exceptions thrown by tasks started with `call()`, `call_async()` and `dispatch_async()` are delivered through the returned future. Exceptions thrown by other tasks are caught and ignored, they do not stop the executor.
 -   The destructors of `pool_executor` and `dispatcher` wait until all tasks, including tasks added by tasks, are finished. The destructor of `executor` runs the tasks that were queued before it, and discards timers that have not run yet.
--   Using an executor while it is being destroyed violates the C++ object lifetime rules. A `scheduled_call` handle must not be used after its executor is destroyed.
+-   A task that waits for its own executor would deadlock: `executor::synchronize()` on the executor thread, and `wait_idle()` from a task on the same pool or dispatcher, throw `std::logic_error` instead.
+-   Using an executor while it is being destroyed violates the C++ object lifetime rules. Calling `cancel()` on a `scheduled_call` after its executor is destroyed does nothing.
 
 ### Timers and clock adjustments
 
 Timers are based on `std::chrono::steady_clock` and should not be affected by adjustments of the system clock. However, libstdc++ before GCC 10 waits on `system_clock` internally, so on those compilers adjusting the system clock can make a timer fire early or late.
+
+## Testing with old compilers
+
+GCC 4.9 is the oldest supported compiler. Old compilers are rarely installed, so `tools/compiler_explorer.py` uses the [Compiler Explorer](https://compiler-explorer.com) API to compile and run the examples with them (it sends the headers and an example, only the Python standard library is needed):
+
+```sh
+python3 tools/compiler_explorer.py test             # GCC 4.9.0 to 14.2, Clang 3.5 to 15
+python3 tools/compiler_explorer.py test g492 g540   # specific compilers, by Compiler Explorer id
+```
+
+The test fails when a compiler reports a warning in the venus headers, because those warnings would show up in the builds of everyone using venus. CI runs this test as well.
 
 ## Effective use of Venus Executors
 
