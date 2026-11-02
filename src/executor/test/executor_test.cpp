@@ -122,3 +122,15 @@ TEST(executor, cancel_after_executor_is_destroyed_does_nothing)
     executor.reset();
     call.cancel();
 }
+
+TEST(executor, accepts_move_only_tasks)
+{
+    venus::executor executor;
+    auto value = std::make_unique<int>(41);
+    auto future = executor.call_async([value = std::move(value)] { return *value + 1; });
+    ASSERT_EQ(future.get(), 42);
+
+    auto owned = std::make_unique<int>(1);
+    executor.add([owned = std::move(owned)] { (void)*owned; });
+    executor.synchronize();
+}

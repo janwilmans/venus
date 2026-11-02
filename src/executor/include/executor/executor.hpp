@@ -7,6 +7,7 @@
 #include "executor/detail/config.hpp"
 #include "executor/scheduled_calls.hpp"
 #include "executor/synchronized_queue.hpp"
+#include "executor/task.hpp"
 
 #include <atomic>
 #include <cassert>
@@ -83,10 +84,10 @@ public:
     template <typename Fn>
     auto call_async(Fn fn)
     {
-        auto pTask = std::make_shared<std::packaged_task<decltype(fn())()>>(std::move(fn));
-        auto f = pTask->get_future();
-        add([pTask]() { (*pTask)(); });
-        return f;
+        std::packaged_task<decltype(fn())()> packaged(std::move(fn));
+        auto future = packaged.get_future();
+        add(std::move(packaged));
+        return future;
     }
 
     /**
@@ -121,7 +122,7 @@ public:
      * Exceptions thrown by tasks added with add(), call_at(), call_after() or call_every() are caught and ignored,
      * use call() or call_async() to receive the exception through the returned future.
      */
-    void add(venus::function_t function);
+    void add(task t);
     void cancel(venus::call_t::id_t id);
 
     scheduled_call call_at(const time_point_t & at, function_t function);
@@ -148,7 +149,7 @@ private:
      * - Tasks are executed in the exact order they were added to the queue.
      * - Tasks are executed consecutively (never in parallel), ensuring no race conditions exist between them.
      */
-    synchronized_queue<std::function<void()>> m_queue;
+    synchronized_queue<task> m_queue;
 
     /**
      * @brief Stores tasks along with their scheduled execution times.
@@ -227,9 +228,9 @@ inline bool executor::is_executor_thread() const
     return std::this_thread::get_id() == m_threadId;
 }
 
-inline void executor::add(std::function<void()> fn)
+inline void executor::add(task t)
 {
-    m_queue.push(std::move(fn));
+    m_queue.push(std::move(t));
 }
 
 inline void executor::synchronize()
