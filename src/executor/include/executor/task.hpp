@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "executor/detail/config.hpp"
+
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -38,7 +40,7 @@ public:
         m_callable->call();
     }
 
-    [[nodiscard]] explicit operator bool() const
+    VENUS_NODISCARD explicit operator bool() const
     {
         return m_callable != nullptr;
     }

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "executor/detail/config.hpp"
 #include "executor/detail/worker_pool.hpp"
 #include "executor/task.hpp"
 
@@ -58,7 +59,7 @@ public:
         m_pool.wait_idle();
     }
 
-    [[nodiscard]] std::size_t thread_count() const
+    VENUS_NODISCARD std::size_t thread_count() const
     {
         return m_pool.thread_count();
     }

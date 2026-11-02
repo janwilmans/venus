@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "executor/detail/config.hpp"
 #include "executor/detail/worker_pool.hpp"
 #include "executor/task.hpp"
 
@@ -141,14 +142,14 @@ public:
     /**
      * @brief Creates a serial queue whose tasks run at priority @p p
      */
-    [[nodiscard]] serial_queue make_serial_queue(priority p = priority::normal);
+    VENUS_NODISCARD serial_queue make_serial_queue(priority p = priority::normal);
 
     /**
      * @brief Blocks until all tasks, including those in serial queues, are finished. @throws std::logic_error when called from a task.
      */
     void wait_idle();
 
-    [[nodiscard]] std::size_t thread_count() const;
+    VENUS_NODISCARD std::size_t thread_count() const;
 
 private:
     detail::worker_pool m_pool;

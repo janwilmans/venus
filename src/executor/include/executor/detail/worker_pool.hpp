@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "executor/detail/config.hpp"
 #include "executor/task.hpp"
 
 #include <algorithm>
@@ -23,7 +24,7 @@ namespace venus {
 /**
  * @brief The number of threads that can run concurrently on this system, at least 1.
  */
-[[nodiscard]] inline std::size_t default_thread_count()
+VENUS_NODISCARD inline std::size_t default_thread_count()
 {
     return std::max<std::size_t>(1, std::thread::hardware_concurrency());
 }
@@ -66,18 +67,18 @@ public:
      */
     void wait_idle();
 
-    [[nodiscard]] std::size_t thread_count() const;
-    [[nodiscard]] std::size_t level_count() const;
+    VENUS_NODISCARD std::size_t thread_count() const;
+    VENUS_NODISCARD std::size_t level_count() const;
 
     /**
      * @brief Checks if the calling thread is one of the workers of this pool.
      */
-    [[nodiscard]] bool is_worker_thread() const;
+    VENUS_NODISCARD bool is_worker_thread() const;
 
 private:
     void run();
     void stop_and_join();
-    [[nodiscard]] bool has_work() const;
+    VENUS_NODISCARD bool has_work() const;
     task pop();
 
     std::mutex m_mutex;

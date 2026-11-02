@@ -15,7 +15,10 @@ option(VENUS_INSTALL "Generate the install target, for use with find_package(ven
 set(VENUS_SANITIZE "" CACHE STRING "Sanitizers to enable, for example 'address,undefined' or 'thread'")
 
 if (VENUS_IS_TOP_LEVEL)
-  set(CMAKE_CXX_STANDARD 14)
+  # C++14 by default, can be overridden with -DCMAKE_CXX_STANDARD=17 to test newer standards
+  if (NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 14)
+  endif()
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
   set(CMAKE_CXX_EXTENSIONS OFF)
 endif()

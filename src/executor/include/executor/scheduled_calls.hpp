@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "executor/detail/config.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -34,10 +36,10 @@ struct call_t
 class scheduled_calls
 {
 public:
-    [[nodiscard]] bool empty() const;
+    VENUS_NODISCARD bool empty() const;
     void insert(call_t && call);
     void remove(call_t::id_t);
-    [[nodiscard]] time_point_t next_deadline() const;
+    VENUS_NODISCARD time_point_t next_deadline() const;
 
     /**
      * @brief Pops the first task from `m_calls` and potentially reschedules it.

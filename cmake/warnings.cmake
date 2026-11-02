@@ -33,7 +33,6 @@ add_compile_options(
   -Wvla
   -Wsign-conversion
   -Wconversion
-  -Wno-attributes
   $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
 )
 
@@ -83,7 +82,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         -Wno-array-bounds
         -Wno-stringop-overflow
         -Wno-dangling-reference
-        -Wno-c++17-attribute-extensions
       )
     endif()
 
@@ -93,6 +91,5 @@ endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(
       -Wshadow
-      -Wno-c++17-attribute-extensions
       )
 endif()

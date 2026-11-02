@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "executor/detail/config.hpp"
 #include "executor/guarded.hpp"
 
 #include <chrono>
@@ -41,14 +42,14 @@ public:
     {
     }
 
-    [[nodiscard]] bool empty() const
+    VENUS_NODISCARD bool empty() const
     {
         return m_queue.with_lock([](TQueue & queue) {
             return queue.empty();
         });
     }
 
-    [[nodiscard]] bool full() const
+    VENUS_NODISCARD bool full() const
     {
         if (m_maximum_size == 0)
         {
@@ -60,14 +61,14 @@ public:
         });
     }
 
-    [[nodiscard]] std::size_t size() const
+    VENUS_NODISCARD std::size_t size() const
     {
         return m_queue.with_lock([](const TQueue & queue) {
             return queue.size();
         });
     }
 
-    [[nodiscard]] std::size_t maximum_size() const
+    VENUS_NODISCARD std::size_t maximum_size() const
     {
         return m_maximum_size;
     }
@@ -90,7 +91,7 @@ public:
      * @return `true` if the queue is not full; `false` if the duration passed.
      */
     template <typename Rep, typename Period>
-    [[nodiscard]] bool wait_for_not_full(const std::chrono::duration<Rep, Period> & duration) const
+    VENUS_NODISCARD bool wait_for_not_full(const std::chrono::duration<Rep, Period> & duration) const
     {
         if (m_maximum_size == 0)
         {
@@ -117,7 +118,7 @@ public:
      *         `false` otherwise.
      */
     template <typename Clock, typename Duration>
-    [[nodiscard]] bool wait_for_not_empty(const std::chrono::time_point<Clock, Duration> & timepoint) const
+    VENUS_NODISCARD bool wait_for_not_empty(const std::chrono::time_point<Clock, Duration> & timepoint) const
     {
         return m_queue.wait_until([](const TQueue & queue) { return !queue.empty(); }, timepoint);
     }

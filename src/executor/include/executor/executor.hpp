@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "executor/detail/config.hpp"
 #include "executor/scheduled_calls.hpp"
 #include "executor/synchronized_queue.hpp"
 
@@ -37,7 +38,7 @@ public:
     scheduled_call(venus::executor & executor, scheduled_call::id_t id);
     void cancel();
 
-    [[nodiscard]] scheduled_call::id_t id() const;
+    VENUS_NODISCARD scheduled_call::id_t id() const;
 
 private:
     std::weak_ptr<executor *> m_executor; // expires when the executor is destroyed
@@ -93,7 +94,7 @@ public:
      *
      * @return `true` if the calling thread is the executor thread; otherwise, `false`.
      */
-    [[nodiscard]] bool is_executor_thread() const;
+    VENUS_NODISCARD bool is_executor_thread() const;
 
     /**
      * @brief Executes the main loop of the executor.

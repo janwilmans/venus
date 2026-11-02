@@ -16,8 +16,10 @@ jobs:
           - { name: linux-clang, os: ubuntu-latest, cxx: clang++ }
           - { name: linux-gcc-asan-ubsan, os: ubuntu-latest, cxx: g++, sanitize: "address,undefined" }
           - { name: linux-gcc-tsan, os: ubuntu-latest, cxx: g++, sanitize: thread }
+          - { name: linux-gcc-cxx17, os: ubuntu-latest, cxx: g++, std: 17 }
           - { name: macos-appleclang, os: macos-latest }
           - { name: windows-msvc, os: windows-latest }
+          - { name: windows-msvc-cxx17, os: windows-latest, std: 17 }
 
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +36,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug
           ${{ matrix.cxx && format('-DCMAKE_CXX_COMPILER={0}', matrix.cxx) || '' }}
           ${{ matrix.sanitize && format('-DVENUS_SANITIZE={0}', matrix.sanitize) || '' }}
+          ${{ matrix.std && format('-DCMAKE_CXX_STANDARD={0}', matrix.std) || '' }}
 
       - name: Build
         run: cmake --build build --config Debug --parallel
@@ -74,3 +77,4 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
+
