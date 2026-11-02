@@ -30,7 +30,7 @@ jobs:
       - name: Configure
         shell: bash
         run: >
-          cmake -S src -B build
+          cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Debug
           ${{ matrix.cxx && format('-DCMAKE_CXX_COMPILER={0}', matrix.cxx) || '' }}
           ${{ matrix.sanitize && format('-DVENUS_SANITIZE={0}', matrix.sanitize) || '' }}
@@ -41,59 +41,36 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure
 
-  # venus used as a subproject: no tests, no fetched dependencies, no -Werror
+  # venus used by another project (test/consumer): no fetched test dependencies, no -Werror, links and runs
   consumer:
-    name: consumer-${{ matrix.os }}
+    name: consumer-${{ matrix.mode }}-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        mode: [add_subdirectory, fetchcontent, find_package]
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: venus
 
-      - name: Create consumer project
+      - name: Install venus
+        if: matrix.mode == 'find_package'
         shell: bash
         run: |
-          mkdir consumer
-          cat > consumer/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(consumer CXX)
-          add_subdirectory(../venus/src venus)
-          if (TARGET GTest::gtest OR TARGET fmt::fmt)
-            message(FATAL_ERROR "venus fetched test dependencies while used as a subproject")
-          endif()
-          add_executable(consumer main.cpp)
-          target_link_libraries(consumer PRIVATE venus::executor)
-          EOF
-          cat > consumer/main.cpp <<'EOF'
-          #include "executor/dispatcher.hpp"
-          #include "executor/executor.hpp"
-          #include "executor/pool_executor.hpp"
-
-          int main()
-          {
-              venus::executor executor;
-              venus::pool_executor pool;
-              venus::dispatcher dispatcher;
-              auto queue = dispatcher.make_serial_queue();
-              const int a = executor.call([] { return 1; });
-              const int b = pool.call_async([] { return 2; }).get();
-              const int c = queue.dispatch_async([] { return 3; }).get();
-              return a + b + c == 6 ? 0 : 1;
-          }
-          EOF
+          cmake -S . -B build-venus -DVENUS_BUILD_TESTS=OFF
+          cmake --install build-venus --prefix "${{ github.workspace }}/install" --config Debug
 
       - name: Configure
-        run: cmake -S consumer -B build
+        shell: bash
+        run: >
+          cmake -S test/consumer -B build
+          -DVENUS_CONSUME_MODE=${{ matrix.mode }}
+          -DVENUS_GIT_TAG=${{ github.sha }}
+          "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/install"
 
       - name: Build
         run: cmake --build build --config Debug --parallel
 
-      - name: Run
-        shell: bash
-        run: |
-          if [ -f build/Debug/consumer.exe ]; then build/Debug/consumer.exe; else build/consumer; fi
+      - name: Test
+        run: ctest --test-dir build -C Debug --output-on-failure

@@ -2,12 +2,14 @@
 add_library(venus_executor_library INTERFACE)
 
 target_include_directories(venus_executor_library INTERFACE
-    include
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/venus>
 )
 
 target_compile_features(venus_executor_library INTERFACE cxx_std_14)
 target_link_libraries(venus_executor_library INTERFACE Threads::Threads)
 
+set_target_properties(venus_executor_library PROPERTIES EXPORT_NAME executor)
 add_library(venus::executor ALIAS venus_executor_library)
 
 if (NOT VENUS_BUILD_TESTS)
