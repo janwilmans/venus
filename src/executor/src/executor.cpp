@@ -55,7 +55,7 @@ bool executor::is_executor_thread() const
 
 void executor::add(std::function<void()> fn)
 {
-    m_queue.push(fn);
+    m_queue.push(std::move(fn));
 }
 
 void executor::synchronize()
@@ -68,32 +68,31 @@ void executor::synchronize()
 
 scheduled_call executor::call_at(const time_point_t & at, function_t function)
 {
-    return call_every(at, {}, function);
+    return call_every(at, {}, std::move(function));
 }
 
 scheduled_call executor::call_after(const duration_t & delay, function_t function)
 {
-    return call_at(std::chrono::steady_clock::now() + delay, function);
+    return call_at(std::chrono::steady_clock::now() + delay, std::move(function));
 }
 
 scheduled_call executor::call_every(const duration_t & repeat_interval, function_t function)
 {
-    return call_every(std::chrono::steady_clock::now(), repeat_interval, function);
+    return call_every(std::chrono::steady_clock::now(), repeat_interval, std::move(function));
 }
 
 scheduled_call executor::call_every(const time_point_t & at, const duration_t & repeat_interval, function_t function)
 {
     auto id = ++m_last_call_id;
+    venus::call_t call(id, at, repeat_interval, std::move(function));
     if (is_executor_thread())
     {
         // insert immediately, so a cancel() that follows in the same task finds the call
-        m_scheduled_calls.insert(venus::call_t(id, at, repeat_interval, function));
+        m_scheduled_calls.insert(std::move(call));
     }
     else
     {
-        add([this, id, at, repeat_interval, function]() {
-            m_scheduled_calls.insert(venus::call_t(id, at, repeat_interval, function));
-        });
+        add([this, call = std::move(call)]() mutable { m_scheduled_calls.insert(std::move(call)); });
     }
     return scheduled_call(*this, id);
 }

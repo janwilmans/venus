@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <utility>
 
 namespace venus {
 
@@ -35,7 +36,7 @@ bool scheduled_calls::empty() const
 void scheduled_calls::insert(call_t && call)
 {
     auto it = std::lower_bound(m_calls.begin(), m_calls.end(), call, [](const call_t & a, const call_t & b) { return a.m_at > b.m_at; });
-    m_calls.insert(it, call);
+    m_calls.insert(it, std::move(call));
 }
 
 void scheduled_calls::remove(call_t::id_t id)

@@ -1,4 +1,6 @@
-
+/*
+ * Copyright (c) 2025 Jan Wilmans
+ */
 
 #pragma once
 

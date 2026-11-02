@@ -7,6 +7,7 @@
 #include "executor/scheduled_calls.hpp"
 #include "executor/synchronized_queue.hpp"
 
+#include <atomic>
 #include <cassert>
 #include <chrono>
 #include <cstdint>
@@ -14,11 +15,18 @@
 #include <future>
 #include <memory>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace venus {
 
 class executor;
+
+/**
+ * @brief Handle to a call scheduled by executor::call_at(), call_after() or call_every()
+ *
+ * Destroying the handle does _not_ cancel the call.
+ */
 class scheduled_call
 {
 public:
@@ -30,7 +38,7 @@ public:
     [[nodiscard]] scheduled_call::id_t id() const;
 
 private:
-    executor * m_executor;
+    executor * m_executor; // non-owning, a scheduled_call must not be cancel()-ed after its executor is destroyed
     scheduled_call::id_t m_id;
 };
 
@@ -40,12 +48,19 @@ public:
     executor();
 
     /**
-     * @brief The destructor of the executor ensures that any ongoing tasks initiated by call(), tasks scheduled via call_async, or
-     * call_at / call_after that have reached their scheduled time, are completed before the destructor finishes execution.
+     * @brief Finishes all tasks that were added before destruction started, then stops the executor thread.
+     *
+     * Tasks added by add(), call() and call_async() before the destructor was called are executed.
+     * Scheduled calls (call_at / call_after / call_every) that have not run yet are discarded.
      *
      * Note: users still using the executor during destruction are in violation of the C++ object lifetime rules.
      */
     ~executor();
+
+    executor(const executor &) = delete;
+    executor & operator=(const executor &) = delete;
+    executor(executor &&) = delete;
+    executor & operator=(executor &&) = delete;
 
     template <typename Fn>
     auto call(Fn fn)
@@ -57,7 +72,7 @@ public:
         }
 
         // A packaged_task encapsulates a task and its associated promise in one object.
-        std::packaged_task<decltype(fn())()> task(fn);
+        std::packaged_task<decltype(fn())()> task(std::move(fn));
         add([&task]() { task(); });
         return task.get_future().get();
     }
@@ -65,7 +80,7 @@ public:
     template <typename Fn>
     auto call_async(Fn fn)
     {
-        auto pTask = std::make_shared<std::packaged_task<decltype(fn())()>>(fn);
+        auto pTask = std::make_shared<std::packaged_task<decltype(fn())()>>(std::move(fn));
         auto f = pTask->get_future();
         add([pTask]() { (*pTask)(); });
         return f;
@@ -76,7 +91,7 @@ public:
      *
      * @return `true` if the calling thread is the executor thread; otherwise, `false`.
      */
-    bool is_executor_thread() const;
+    [[nodiscard]] bool is_executor_thread() const;
 
     /**
      * @brief Executes the main loop of the executor.
@@ -95,6 +110,12 @@ public:
      */
     void synchronize();
 
+    /**
+     * @brief Adds a task to be executed as soon as possible, in order.
+     *
+     * Exceptions thrown by tasks added with add(), call_at(), call_after() or call_every() are caught and ignored,
+     * use call() or call_async() to receive the exception through the returned future.
+     */
     void add(venus::function_t function);
     void cancel(venus::call_t::id_t id);
 
