@@ -49,6 +49,10 @@ include(GNUInstallDirs)
 
 add_subdirectory(src/executor)
 
+if (VENUS_BUILD_TESTS)
+  add_subdirectory(examples)
+endif()
+
 if (VENUS_INSTALL)
   include(CMakePackageConfigHelpers)
 
